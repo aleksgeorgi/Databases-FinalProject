@@ -1,5 +1,5 @@
 -- project 3 main sql script
-
+ 
 /* 
 Step1: CREATE THE DATABASE
 Instructions: run only lines 10 and 11 using the master databse 
