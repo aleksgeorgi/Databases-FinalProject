@@ -5,8 +5,8 @@ Step1: CREATE THE DATABASE
 Instructions: run only lines 10 and 11 using the master databse 
 */
 
-CREATE DATABASE [ClassSchedule_9:15_Group1];
-GO
+-- CREATE DATABASE [ClassSchedule_9:15_Group1];
+-- GO
 
 /*
 Step2: Create the Schemas & run all remaining code & procedures  
@@ -14,7 +14,33 @@ Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] datab
 */
 
 
---------------------- CREATE SCHEMAS -------------------------
+
+----------------------------- CREATE SCHEMAS ---------------------------------
+
+DROP SCHEMA IF EXISTS [Academic]; 
+GO
+CREATE SCHEMA [Academic];
+GO
+
+DROP SCHEMA IF EXISTS [Personnel]; 
+GO
+CREATE SCHEMA [Personnel];
+GO
+
+DROP SCHEMA IF EXISTS [ClassManagement]; 
+GO
+CREATE SCHEMA [ClassManagement];
+GO
+
+DROP SCHEMA IF EXISTS [Facilities];
+GO
+CREATE SCHEMA [Facilities];
+GO
+
+DROP SCHEMA IF EXISTS [Enrollment]; 
+GO
+CREATE SCHEMA [Enrollment];
+GO
 
 DROP SCHEMA IF EXISTS [DbSecurity]; 
 GO
@@ -40,6 +66,57 @@ DROP SCHEMA IF EXISTS [G9_1];
 GO
 CREATE SCHEMA [G9_1];
 GO
+
+DROP SCHEMA IF EXISTS [Uploadfile]
+GO
+CREATE SCHEMA [Uploadfile]
+GO
+
+
+------------------------------ Import the UploadFile Data --------------------------------
+
+-- Create the table 
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Uploadfile].[CurrentSemesterCourseOfferings](
+	[Semester] [varchar](50) NULL,
+	[Sec] [varchar](50) NULL,
+	[Code] [varchar](50) NULL,
+	[Course (hr, crd)] [varchar](50) NULL,
+	[Description] [varchar](50) NULL,
+	[Day] [varchar](50) NULL,
+	[Time] [varchar](50) NULL,
+	[Instructor] [varchar](50) NULL,
+	[Location] [varchar](50) NULL,
+	[Enrolled] [varchar](50) NULL,
+	[Limit] [varchar](50) NULL,
+	[Mode of Instruction] [varchar](50) NULL
+) ON [PRIMARY]
+GO
+ALTER TABLE [Uploadfile].[CurrentSemesterCourseOfferings] ADD  CONSTRAINT [DF_CurrentSemesterCourseOfferings_Semester]  DEFAULT ('Current Semester') FOR [Semester]
+GO
+
+INSERT INTO [ClassSchedule_9:15_Group1].[Uploadfile].[CurrentSemesterCourseOfferings](
+    [Semester],
+	[Sec],
+	[Code],
+	[Course (hr, crd)],
+	[Description],
+	[Day],
+	[Time],
+	[Instructor],
+	[Location],
+	[Enrolled],
+	[Limit],
+	[Mode of Instruction]
+)
+SELECT *
+FROM [QueensClassSchedule].[UploadFile].[CurrentSemesterCourseOfferings]
+GO
+
+
 
 ------------------------- CREATE SEQUENCES ----------------------------
 
