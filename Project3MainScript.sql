@@ -63,6 +63,8 @@ GO
 CREATE SCHEMA [Uploadfile]
 GO
 
+DROP SCHEMA IF EXISTS [Udt]
+GO
 CREATE SCHEMA [Udt]
 GO
 
@@ -85,7 +87,11 @@ GO
 CREATE TYPE [Udt].[FirstName] FROM nvarchar(20) NOT NULL
 GO
 CREATE TYPE [Udt].[GroupName] FROM nvarchar(20) NOT NULL
+GO
 
+-- Ahnaf
+CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
+GO
 
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
 
@@ -235,6 +241,37 @@ CREATE TABLE [Personnel].[Instructor]
 GO
 
 
+-- Ahnaf
+/*
+
+Table: [ClassManagement].[Days]
+
+-- =============================================
+-- Author:		Ahnaf Ahmed
+-- Create date: 12/4/23
+-- Description:	Table to store all days of the week to be later used for classdays bridge table
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [ClassManagement].[Days]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [ClassManagement].[Days]
+(
+    [DayID] [int] NOT NULL IDENTITY(1, 1), -- primary key
+    [DayAbbreviation] [Udt].[DayOfWeek] NOT NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[DayID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
 
 
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
@@ -272,6 +309,12 @@ GO
 ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
+-- Ahnaf
+ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
 -- add check constraints in the following format: 
 -- Aleks
 ALTER TABLE [Process].[WorkflowSteps]  WITH CHECK ADD  CONSTRAINT [FK_WorkFlowSteps_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -280,13 +323,19 @@ GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
 GO
 
-
+-- Ahnaf
+ALTER TABLE [ClassManagement].[Days] ADD CONSTRAINT CHK_DayOfWeek
+CHECK (DayAbbreviation IN ('M', 'T', 'W', 'TH', 'F', 'S', 'SU'))
+GO
 
 
 
 ------------------------------- CREATE TABLE VALUED FUNCTIONS ----------------------------
 
-
+-- CREATE TABLE ClassDayTest (
+--     CDID INT PRIMARY KEY,
+--     DayAbb [Udt].[DayOfWeek]
+-- )
 
 
 
@@ -616,6 +665,9 @@ BEGIN
 
     -- add more here...
 
+    -- Ahnaf
+    TRUNCATE TABLE [ClassManagement].[Days]
+
 
 
     DECLARE @WorkFlowStepTableRowCount INT;
@@ -686,6 +738,14 @@ BEGIN
         FROM [Personnel].[Instructor]
     -- add more here... 
 
+    -- Ahnaf
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[ClassManagement].[Days]',
+            [Row Count] = COUNT(*)
+        FROM [ClassManagement].[Days]
+
+
     ;
 
 
@@ -707,7 +767,54 @@ GO
 
 -- add more stored procedures here... 
 
+-- Ahnaf
+/*
+Stored Procedure: [Project3].[LoadDays]
 
+-- =============================================
+-- Author:		Ahnaf Ahmed
+-- Create date: 12/4/23
+-- Description:	Adds the day abbreviation to the Days Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadDays] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [ClassManagement].[Days](
+        [DayAbbreviation], [UserAuthorizationKey]
+    )
+    VALUES 
+        
+        ('M', @UserAuthorizationKey),
+        ('T', @UserAuthorizationKey),
+        ('W', @UserAuthorizationKey),
+        ('TH', @UserAuthorizationKey),
+        ('F', @UserAuthorizationKey),
+        ('S', @UserAuthorizationKey),
+        ('SU', @UserAuthorizationKey)
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 7;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
 
 
 
@@ -804,6 +911,8 @@ BEGIN
 
     -- add more here... 
 
+    -- Ahnaf
+    EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
 
 
     --	Check row count before truncation
