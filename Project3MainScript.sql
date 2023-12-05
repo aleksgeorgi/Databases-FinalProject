@@ -309,7 +309,12 @@ GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
 GO
 
-
+-- Nicholas
+ALTER TABLE [Project3].[LoadModeOfInstruction]  WITH CHECK ADD  CONSTRAINT [FK_ModeOfInst_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [Project3].[LoadModeOfInstruction] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Project3].[LoadModeOfInstruction] CHECK CONSTRAINT [FK_ModeOfInst_UserAuthorization]
+GO
 
 
 
