@@ -1,20 +1,37 @@
--- project 3 main sql script
+--------------------------------------- CREATE THE DATABASE ------------------------------------------
+-- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
-/* 
-Step1: CREATE THE DATABASE
-Instructions: run only lines 10 and 11 using the master databse 
-*/
+-- CREATE DATABASE [ClassSchedule_9:15_Group1];
+-- GO
 
-CREATE DATABASE [ClassSchedule_9:15_Group1];
+--------------------------------------- CREATE SCHEMAS ------------------------------------------
+-- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
+
+
+DROP SCHEMA IF EXISTS [Academic]; 
+GO
+CREATE SCHEMA [Academic];
 GO
 
-/*
-Step2: Create the Schemas & run all remaining code & procedures  
-Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
-*/
+DROP SCHEMA IF EXISTS [Personnel]; 
+GO
+CREATE SCHEMA [Personnel];
+GO
 
+DROP SCHEMA IF EXISTS [ClassManagement]; 
+GO
+CREATE SCHEMA [ClassManagement];
+GO
 
---------------------- CREATE SCHEMAS -------------------------
+DROP SCHEMA IF EXISTS [Facilities];
+GO
+CREATE SCHEMA [Facilities];
+GO
+
+DROP SCHEMA IF EXISTS [Enrollment]; 
+GO
+CREATE SCHEMA [Enrollment];
+GO
 
 DROP SCHEMA IF EXISTS [DbSecurity]; 
 GO
@@ -41,30 +58,82 @@ GO
 CREATE SCHEMA [G9_1];
 GO
 
-------------------------- CREATE SEQUENCES ----------------------------
-
-
--- for automatically assigning keys in [DbSecurity].[UserAuthorization]
--- Aleks
-CREATE SEQUENCE [PkSequence].[UserAuthorizationSequenceObject] 
- AS [int]
- START WITH 1
- INCREMENT BY 1
- MINVALUE 1
- MAXVALUE 2147483647
+DROP SCHEMA IF EXISTS [Uploadfile]
+GO
+CREATE SCHEMA [Uploadfile]
 GO
 
--- for replacing identity key in [Process].[WorkflowSteps]
-CREATE SEQUENCE [PkSequence].[WorkFlowStepsSequenceObject] 
- AS [int]
- START WITH 1
- INCREMENT BY 1
- MINVALUE 1
- MAXVALUE 2147483647
+DROP SCHEMA IF EXISTS [Udt]
+GO
+CREATE SCHEMA [Udt]
 GO
 
 
--- add more sequences as needed
+------------------------------------- Create User Defined Datatypes ---------------------------------------
+
+--Aleks
+CREATE TYPE [Udt].[DateAdded] FROM [datetime2] NOT NULL
+GO
+CREATE TYPE [Udt].[DateOfLastUpdate] FROM [datetime2] NOT NULL
+GO
+CREATE TYPE [Udt].[SurrogateKeyInt] FROM [int] NULL
+GO
+CREATE TYPE [Udt].[ClassTime] FROM nchar(19) NOT NULL
+GO
+CREATE TYPE [Udt].[IndividualProject] FROM nvarchar (60) NOT NULL
+GO
+CREATE TYPE [Udt].[LastName] FROM  nvarchar(35) NOT NULL
+GO
+CREATE TYPE [Udt].[FirstName] FROM nvarchar(20) NOT NULL
+GO
+CREATE TYPE [Udt].[GroupName] FROM nvarchar(20) NOT NULL
+
+
+------------------------------------------ Import the UploadFile Data ---------------------------------------
+
+-- Create the table 
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Uploadfile].[CurrentSemesterCourseOfferings]
+(
+    [Semester] [varchar](50) NULL,
+    [Sec] [varchar](50) NULL,
+    [Code] [varchar](50) NULL,
+    [Course (hr, crd)] [varchar](50) NULL,
+    [Description] [varchar](50) NULL,
+    [Day] [varchar](50) NULL,
+    [Time] [varchar](50) NULL,
+    [Instructor] [varchar](50) NULL,
+    [Location] [varchar](50) NULL,
+    [Enrolled] [varchar](50) NULL,
+    [Limit] [varchar](50) NULL,
+    [Mode of Instruction] [varchar](50) NULL
+) ON [PRIMARY]
+GO
+ALTER TABLE [Uploadfile].[CurrentSemesterCourseOfferings] ADD  CONSTRAINT [DF_CurrentSemesterCourseOfferings_Semester]  DEFAULT ('Current Semester') FOR [Semester]
+GO
+
+INSERT INTO [ClassSchedule_9:15_Group1].[Uploadfile].[CurrentSemesterCourseOfferings]
+    (
+    [Semester],
+    [Sec],
+    [Code],
+    [Course (hr, crd)],
+    [Description],
+    [Day],
+    [Time],
+    [Instructor],
+    [Location],
+    [Enrolled],
+    [Limit],
+    [Mode of Instruction]
+    )
+SELECT *
+FROM [QueensClassSchedule].[UploadFile].[CurrentSemesterCourseOfferings]
+GO
+
 
 
 
@@ -81,13 +150,16 @@ DROP TABLE IF EXISTS [DbSecurity].[UserAuthorization]
 GO
 CREATE TABLE [DbSecurity].[UserAuthorization]
 (
-    [UserAuthorizationKey] [int] NOT NULL,
-    [ClassTime] [nchar](5) NOT NULL,
-    [IndividualProject] [nvarchar](60) NULL,
-    [GroupMemberLastName] [nvarchar](35) NOT NULL,
-    [GroupMemberFirstName] [nvarchar](25) NOT NULL,
-    [GroupName] [nvarchar](20) NOT NULL,
-    [DateAdded] [datetime2](7) NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL IDENTITY(1,1), -- primary key
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    --
+    [ClassTime] [Udt].[ClassTime] NULL,
+    [IndividualProject] [Udt].[IndividualProject] NULL,
+    [GroupMemberLastName] [Udt].[LastName] NOT NULL,
+    [GroupMemberFirstName] [Udt].[FirstName] NOT NULL,
+    [GroupName] [nvarchar](20) NOT NULL
     PRIMARY KEY CLUSTERED 
 (
 	[UserAuthorizationKey] ASC
@@ -115,59 +187,128 @@ DROP TABLE IF EXISTS [Process].[WorkflowSteps]
 GO
 CREATE TABLE [Process].[WorkflowSteps]
 (
-    [WorkFlowStepKey] [int] NOT NULL,
+    [WorkFlowStepKey] [Udt].[SurrogateKeyInt] NOT NULL IDENTITY(1,1), -- primary key
     [WorkFlowStepDescription] [nvarchar](100) NOT NULL,
     [WorkFlowStepTableRowCount] [int] NULL,
     [StartingDateTime] [datetime2](7) NULL,
     [EndingDateTime] [datetime2](7) NULL,
-    [QueryTime (ms)] [bigint] NULL, 
+    [QueryTime (ms)] [bigint] NULL,
     [Class Time] [char](5) NULL,
-    [UserAuthorizationKey] [int] NOT NULL,
-    PRIMARY KEY CLUSTERED 
-(
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
 	[WorkFlowStepKey] ASC
-)WITH (PAD_INDEX = OFF, 
-STATISTICS_NORECOMPUTE = OFF, 
-IGNORE_DUP_KEY = OFF, 
-ALLOW_ROW_LOCKS = ON, 
-ALLOW_PAGE_LOCKS = ON, 
-OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/*
+
+Table: [Personnel].[Instructor]
+
+-- =============================================
+-- Author:		Aleksandra Georgievska
+-- Create date: 12/4/23
+-- Description:	Load the names & IDs into the user Instructor table
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [Personnel].[Instructor]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Personnel].[Instructor]
+(
+    InstructorID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    FirstName [char](25) NULL, 
+    LastName [char](25) NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[InstructorID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
 
 
+/*
 
+Table: [Academic].[Department]
 
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/5/23
+-- Description:	Create a Department table with id and name
+-- =============================================
 
-
+*/
+DROP TABLE IF EXISTS [Academic].[Department]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Academic].[Department]
+(
+    DepartmentID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    DepartmentName [char](5) NOT NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[DepartmentID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
 
 
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
 
 
+
+
+
 -- Aleks
-ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT (NEXT VALUE FOR PkSequence.[UserAuthorizationSequenceObject]) FOR [UserAuthorizationKey]
-GO
+
 ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT ('9:15') FOR [ClassTime]
 GO
-ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT ('PROJECT 3 CLASS SCHEDULE SCHEMA') FOR [IndividualProject]
+ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT ('PROJECT 3') FOR [IndividualProject]
 GO
 ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT ('GROUP 1') FOR [GroupName]
 GO
 ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
-ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT (NEXT VALUE FOR PkSequence.[WorkFlowStepsSequenceObject]) FOR [WorkFlowStepKey]
+ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT ((0)) FOR [WorkFlowStepTableRowCount]
+GO
+ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT ('09:15') FOR [Class Time]
 GO
 ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT (sysdatetime()) FOR [StartingDateTime]
 GO
 ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT (sysdatetime()) FOR [EndingDateTime]
 GO
-ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT ('9:15') FOR [Class Time]
+ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Process].[WorkflowSteps] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
-
+-- Aryeh
+ALTER TABLE [Academic].[Department] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Academic].[Department] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
 
 -- add check constraints in the following format: 
 -- Aleks
@@ -177,6 +318,12 @@ GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
 GO
 
+-- Aryeh
+ALTER TABLE [Academic].[Department]  WITH CHECK ADD  CONSTRAINT [FK_Department_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Academic].[Department] CHECK CONSTRAINT [FK_Department_UserAuthorization]
+GO
 
 
 
@@ -264,23 +411,18 @@ BEGIN
         StartingDateTime,
         EndingDateTime,
         [QueryTime (ms)],
-        [Class Time],
         UserAuthorizationKey
         )
     VALUES
-        (@WorkflowDescription, 
-        @WorkFlowStepTableRowCount, 
-        @StartingDateTime, 
-        @EndingDateTime, 
-        @QueryTime, 
-        '9:15',
+        (@WorkflowDescription,
+        @WorkFlowStepTableRowCount,
+        @StartingDateTime,
+        @EndingDateTime,
+        @QueryTime,
         @UserAuthorizationKey);
 
 END;
 GO
-
-
-
 
 /*
 
@@ -308,15 +450,15 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
 
     INSERT INTO [DbSecurity].[UserAuthorization]
-    ([GroupMemberLastName],[GroupMemberFirstName])
+        ([GroupMemberLastName],[GroupMemberFirstName])
     VALUES
 
-            ('Georgievska','Aleksandra'),
-            ('Yakubova','Sigalita'),
-            ('Kong','Nicholas'),
-            ('Wray','Edwin'),
-            ('Ahmed','Ahnaf'),
-            ('Richman','Aryeh');
+        ('Georgievska', 'Aleksandra'),
+        ('Yakubova', 'Sigalita'),
+        ('Kong', 'Nicholas'),
+        ('Wray', 'Edwin'),
+        ('Ahmed', 'Ahnaf'),
+        ('Richman', 'Aryeh');
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = 6;
@@ -330,9 +472,6 @@ BEGIN
                                        @UserAuthorizationKey;
 END;
 GO
-
-
-
 
 
 /*
@@ -366,6 +505,11 @@ BEGIN
     -- Aleks
     ALTER TABLE [Process].[WorkflowSteps]
     ADD CONSTRAINT FK_WorkFlowSteps_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+    -- Aryeh
+    ALTER TABLE [Academic].[Department]
+    ADD CONSTRAINT FK_Department_UserAuthorization
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
 
@@ -419,6 +563,8 @@ BEGIN
 
     -- Aleks
     ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT FK_WorkFlowSteps_UserAuthorization;
+    -- Aryeh
+    ALTER TABLE [Academic].[Department] DROP CONSTRAINT FK_Department_UserAuthorization;
 
     -- add more here...
 
@@ -436,6 +582,52 @@ END;
 GO
 
 
+/*
+Stored Procedure: [Project3].[LoadInstructors]
+
+-- =============================================
+-- Author:		Aleksandra Georgievska
+-- Create date: 12/4/23
+-- Description:	Adds the Instructors to the Instructor Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadInstructors] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Personnel].[Instructor](
+        FirstName, LastName, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT
+        LTRIM(RTRIM(SUBSTRING(Instructor, CHARINDEX(',', Instructor) + 2, LEN(Instructor)))) AS FirstName,
+        LTRIM(RTRIM(SUBSTRING(Instructor, 1, CHARINDEX(',', Instructor) - 1))) AS LastName,
+        @UserAuthorizationKey, 
+        @DateAdded
+    FROM
+    [Uploadfile].[CurrentSemesterCourseOfferings]
+    ORDER BY LastName;
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
 
 
 /*
@@ -466,14 +658,15 @@ BEGIN
     -- interfering with SELECT statements.
     SET NOCOUNT ON;
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-    
-    -- Aleks
-    ALTER SEQUENCE [PkSequence].[UserAuthorizationSequenceObject] RESTART WITH 1;
-    TRUNCATE TABLE [DbSecurity].[UserAuthorization]
-    ALTER SEQUENCE [PkSequence].[WorkFlowStepsSequenceObject] RESTART WITH 1;
-    TRUNCATE TABLE [Process].[WorkFlowSteps]
 
-    
+    -- Aleks
+    TRUNCATE TABLE [DbSecurity].[UserAuthorization]
+    TRUNCATE TABLE [Process].[WorkFlowSteps]
+    TRUNCATE TABLE [Personnel].[Instructor]
+    -- Aryeh
+    TRUNCATE TABLE [Academic].[Department]
+
+
     -- add more here...
 
 
@@ -530,7 +723,7 @@ BEGIN
     DECLARE @WorkFlowStepTableRowCount INT = 0;
 
     -- Aleks
-    SELECT TableStatus = @TableStatus,
+            SELECT TableStatus = @TableStatus,
             TableName = '[DbSecurity].[UserAuthorization]',
             [Row Count] = COUNT(*)
         FROM [DbSecurity].[UserAuthorization]
@@ -538,10 +731,22 @@ BEGIN
         SELECT TableStatus = @TableStatus,
             TableName = '[Process].[WorkflowSteps]',
             [Row Count] = COUNT(*)
-        FROM [Process].[WorkflowSteps];
-    
+        FROM [Process].[WorkflowSteps]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Personnel].[Instructor]',
+            [Row Count] = COUNT(*)
+        FROM [Personnel].[Instructor]
+    -- Aryeh
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Academic].[Department]',
+            [Row Count] = COUNT(*)
+        FROM [Academic].[Department]
+
     -- add more here... 
 
+    ;
 
 
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
@@ -564,11 +769,57 @@ GO
 
 
 
+/*
+Stored Procedure: [Project3].[LoadInstructors]
 
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/5/23
+-- Description:	Adds the Departments to the Department Table
+-- =============================================
 
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadDepartments] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Academic].[Department] (
+        DepartmentName, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT
+        LEFT([Course (hr, crd)], CHARINDEX(' ', [Course (hr, crd)]) - 1) AS DepartmentName,
+        @UserAuthorizationKey, 
+        @DateAdded
+    FROM [Uploadfile].[CurrentSemesterCourseOfferings]
+    ORDER BY DepartmentName
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Department Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
 
 
 ----------------------------------------------- CREATE VIEWS -------------------------------------------------------
+
+
+
+
 
 
 
@@ -602,7 +853,7 @@ BEGIN
     --	Check row count before truncation
     EXEC [Project3].[ShowTableStatusRowCount] @UserAuthorizationKey = 6,  
 		@TableStatus = N'''Pre-truncate of tables'''
-    
+
     --	Always truncate the Star Schema Data
     EXEC  [Project3].[TruncateClassScheduleData] @UserAuthorizationKey = 3;
 
@@ -651,8 +902,9 @@ BEGIN
 
     -- Aleks
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
-
-
+    EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
+    -- Aryeh
+    EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6
     -- add more here... 
 
 
@@ -674,7 +926,6 @@ GO
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 -- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
---	Recreate all of the foreign keys after loading the Class Schedule schema
 -- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
