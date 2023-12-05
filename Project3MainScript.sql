@@ -240,6 +240,36 @@ CREATE TABLE [Personnel].[Instructor]
 ) ON [PRIMARY]
 GO
 
+/*
+--Table: [ClassManagement].[ModeOfInstruction]
+
+
+-- =============================================
+-- Author:		Nicholas Kong
+-- Create date: 12/4/23
+-- Description:	Load the names & IDs into the user ModeOfInstruction table
+-- =============================================
+*/
+DROP TABLE IF EXISTS [ClassManagement].[ModeOfInstruction]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE  [ClassManagement].[ModeOfInstruction] (
+    
+    ModeID INT IDENTITY (1,1) NOT NULL,
+	ModeName NVARCHAR(12) NOT NULL,
+	 -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[ModeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
 
 -- Ahnaf
 /*
@@ -331,6 +361,13 @@ ALTER TABLE [ClassManagement].[Days] CHECK CONSTRAINT [FK_Days_UserAuthorization
 GO
 ALTER TABLE [ClassManagement].[Days] ADD CONSTRAINT CHK_DayOfWeek
 CHECK (DayAbbreviation IN ('M', 'T', 'W', 'TH', 'F', 'S', 'SU'))
+GO
+
+-- Nicholas
+ALTER TABLE [ClassManagement].[ModeOfInstruction]  WITH CHECK ADD  CONSTRAINT [FK_ModeOfInst_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [ClassManagement].[ModeOfInstruction] CHECK CONSTRAINT [FK_ModeOfInst_UserAuthorization]
 GO
 
 
@@ -514,9 +551,19 @@ BEGIN
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
 
+    -- Ahnaf 
+    ALTER TABLE [ClassManagement].[Days]
+    ADD CONSTRAINT FK_Days_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+
+    -- Nicholas
+    ALTER TABLE [ClassManagement].[ModeOfInstruction]  
+    ADD  CONSTRAINT [FK_ModeOfInst_UserAuthorization] 
+        FOREIGN KEY([UserAuthorizationKey])
+        REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
+
     -- add more here...
-
-
 
 
     DECLARE @WorkFlowStepTableRowCount INT;
@@ -563,7 +610,13 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
 
     -- Aleks
-    ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT FK_WorkFlowSteps_UserAuthorization;
+    ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT [FK_WorkFlowSteps_UserAuthorization];
+
+    -- Ahnaf
+    ALTER TABLE [ClassManagement].[Days] DROP CONSTRAINT [FK_Days_UserAuthorization];
+
+    -- Nicholas
+    ALTER TABLE [ClassManagement].[ModeOfInstruction] DROP CONSTRAINT [FK_ModeOfInst_UserAuthorization];
 
     -- add more here...
 
@@ -630,7 +683,7 @@ GO
 
 
 /*
-Stored Procedure: Project2.[TruncateClassScheduleData]
+Stored Procedure: Project3.[TruncateClassScheduleData]
 
 Description:
 This procedure is designed to truncate tables in the schema of the data warehouse. 
@@ -663,9 +716,11 @@ BEGIN
     TRUNCATE TABLE [Process].[WorkFlowSteps]
     TRUNCATE TABLE [Personnel].[Instructor]
 
+	-- add more here...
 
-    -- add more here...
-
+	-- Nicholas
+	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
+	
     -- Ahnaf
     TRUNCATE TABLE [ClassManagement].[Days]
 
@@ -737,16 +792,20 @@ BEGIN
             TableName = '[Personnel].[Instructor]',
             [Row Count] = COUNT(*)
         FROM [Personnel].[Instructor]
-    -- add more here... 
-
     -- Ahnaf
     UNION ALL
         SELECT TableStatus = @TableStatus,
             TableName = '[ClassManagement].[Days]',
             [Row Count] = COUNT(*)
         FROM [ClassManagement].[Days]
+    -- Nicholas 
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[ClassManagement].[ModeOfInstruction]',
+            [Row Count] = COUNT(*)
+        FROM [ClassManagement].[ModeOfInstruction]
 
-
+    -- add more here... 
     ;
 
 
@@ -814,6 +873,43 @@ BEGIN
                                        @EndingDateTime,
                                        @QueryTime,
                                        @UserAuthorizationKey;
+END;
+GO
+
+-- =============================================
+-- Author:		Nicholas Kong
+-- Create date: 12/4/23
+-- Description:	Populate a table to show the mode of instruction
+-- =============================================
+
+CREATE OR ALTER PROCEDURE [Project3].[LoadModeOfInstruction]
+    -- Add parameters if needed
+    @UserAuthorizationKey INT
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @WorkFlowStepTableRowCount INT = 0;
+
+
+    INSERT INTO ClassManagement.ModeOfInstruction(ModeName)
+    SELECT Q.[Mode of Instruction]
+    FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
+    -- Additional statements or constraints can be added here
+
+	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadModeOfInstruction] loads data into ShowTableStatusRowCount',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+
 END;
 GO
 
@@ -911,7 +1007,8 @@ BEGIN
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
 
     -- add more here... 
-
+	-- Nicholas
+    EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
     -- Ahnaf
     EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
 
