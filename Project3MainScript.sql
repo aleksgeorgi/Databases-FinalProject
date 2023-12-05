@@ -4,6 +4,10 @@
 -- CREATE DATABASE [ClassSchedule_9:15_Group1];
 -- GO
 
+-- USE master
+-- DROP DATABASE [ClassSchedule_9:15_Group1]
+-- GO
+
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
 
@@ -93,6 +97,9 @@ GO
 CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
 GO
 
+-- Sigi
+CREATE TYPE [Udt].SemesterName FROM NVARCHAR(20);
+GO
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
 
 -- Create the table 
@@ -240,6 +247,39 @@ CREATE TABLE [Personnel].[Instructor]
 ) ON [PRIMARY]
 GO
 
+
+/*
+
+Table: [Enrollment].[Semester]
+
+-- =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/4/23
+-- Description:	Showcase what semester belongs to each ID 
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [Enrollment].[Semester]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Enrollment].[Semester]
+(
+    SemesterID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    SemesterName [Udt].SemesterName NULL, 
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[SemesterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
 /*
 --Table: [ClassManagement].[ModeOfInstruction]
 
@@ -307,9 +347,6 @@ GO
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
 
 
-
-
-
 -- Aleks
 
 ALTER TABLE [DbSecurity].[UserAuthorization] ADD  DEFAULT ('9:15') FOR [ClassTime]
@@ -339,10 +376,23 @@ GO
 ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
+
 -- Ahnaf
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
+-- Nicholas
+ALTER TABLE [ClassManagement].[ModeOfInstruction] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [ClassManagement].[ModeOfInstruction] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
+--Sigi
+ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
 -- add check constraints in the following format: 
@@ -351,6 +401,13 @@ ALTER TABLE [Process].[WorkflowSteps]  WITH CHECK ADD  CONSTRAINT [FK_WorkFlowSt
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
+GO
+
+--Sigi
+ALTER TABLE [Enrollment].[Semester]  WITH CHECK ADD  CONSTRAINT [FK_Semester_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Enrollment].[Semester] CHECK CONSTRAINT [FK_Semester_UserAuthorization]
 GO
 
 -- Ahnaf
@@ -375,8 +432,44 @@ GO
 ------------------------------- CREATE TABLE VALUED FUNCTIONS ----------------------------
 
 
+--Sigi 
+--Not table valued functions but still functions
+-- Create a function to determine the season
+CREATE FUNCTION [Udt].GetSeason(@DateAdded DATETIME2)
+RETURNS NVARCHAR(10)
+AS
+BEGIN
+    DECLARE @Season NVARCHAR(10);
 
+    SET @Season = 
+        CASE
+            WHEN MONTH(@DateAdded) BETWEEN 1 AND 3 THEN 'Winter'
+            WHEN MONTH(@DateAdded) BETWEEN 4 AND 6 THEN 'Spring'
+            WHEN MONTH(@DateAdded) BETWEEN 7 AND 9 THEN 'Summer'
+            WHEN MONTH(@DateAdded) BETWEEN 10 AND 12 THEN 'Fall'
+        END;
 
+    RETURN @Season;
+END;
+GO
+
+-- Create a function to get the formatted SemesterName
+CREATE FUNCTION [Udt].GetSemesterName(@DateAdded DATETIME2)
+RETURNS [Udt].SemesterName
+AS
+BEGIN
+    DECLARE @Season NVARCHAR(10);
+    DECLARE @Year NVARCHAR(4);
+    DECLARE @SemesterName [Udt].SemesterName;
+
+    SET @Season = [Udt].GetSeason(@DateAdded);
+    SET @Year = FORMAT(@DateAdded, 'yyyy');
+    SET @SemesterName = @Season + ' ' + @Year;
+
+    RETURN @SemesterName;
+END;
+
+GO
 
 
 
@@ -551,6 +644,12 @@ BEGIN
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
 
+    -- Sigi
+    ALTER TABLE [Enrollment].[Semester]
+    ADD CONSTRAINT FK_WorkFlowSteps_UserAuthorization
+        FOREIGN KEY([UserAuthorizationKey])
+        REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
+
     -- Ahnaf 
     ALTER TABLE [ClassManagement].[Days]
     ADD CONSTRAINT FK_Days_UserAuthorization
@@ -618,6 +717,9 @@ BEGIN
     -- Nicholas
     ALTER TABLE [ClassManagement].[ModeOfInstruction] DROP CONSTRAINT [FK_ModeOfInst_UserAuthorization];
 
+    -- Sigi
+    ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT FK_Semester_UserAuthorization;
+
     -- add more here...
 
     DECLARE @WorkFlowStepTableRowCount INT;
@@ -681,9 +783,8 @@ BEGIN
 END;
 GO
 
-
 /*
-Stored Procedure: Project3.[TruncateClassScheduleData]
+Stored Procedure: Project2.[TruncateClassScheduleData]
 
 Description:
 This procedure is designed to truncate tables in the schema of the data warehouse. 
@@ -716,15 +817,16 @@ BEGIN
     TRUNCATE TABLE [Process].[WorkFlowSteps]
     TRUNCATE TABLE [Personnel].[Instructor]
 
-	-- add more here...
-
 	-- Nicholas
 	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
 	
     -- Ahnaf
     TRUNCATE TABLE [ClassManagement].[Days]
 
+    -- Sigi
+    TRUNCATE TABLE [Enrollment].[Semester]
 
+    -- add more here...
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = 0;
@@ -804,6 +906,12 @@ BEGIN
             TableName = '[ClassManagement].[ModeOfInstruction]',
             [Row Count] = COUNT(*)
         FROM [ClassManagement].[ModeOfInstruction]
+    -- Sigi
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Enrollment].[Semester]',
+            [Row Count] = COUNT(*)
+        FROM [Enrollment].[Semester]
 
     -- add more here... 
     ;
@@ -826,6 +934,50 @@ GO
 
 
 -- add more stored procedures here... 
+
+
+/*
+Stored Procedure: [Project3].[LoadSemesters]
+
+-- =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/4/23
+-- Description:	Loads in the Semester Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadSemesters] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    --Right now this should only fill the table with Fall 2023 but in the future this will be a useful feature
+    INSERT INTO [Enrollment].[Semester](
+        SemesterName, UserAuthorizationKey, DateAdded
+    )
+    SELECT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
+    FROM
+    [Uploadfile].[CurrentSemesterCourseOfferings]
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Semester Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
 
 -- Ahnaf
 /*
@@ -928,6 +1080,10 @@ GO
 
 
 
+
+
+
+
 --------------------------------------- DB CONTROLLER STORED PROCEDURES ----------------------------------------------
 
 /*
@@ -1006,11 +1162,17 @@ BEGIN
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
 
-    -- add more here... 
 	-- Nicholas
     EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
+
     -- Ahnaf
     EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
+
+    -- Sigi
+    EXEC [Project3].[LoadSemesters] @UserAuthorizationKey = 2
+
+
+    -- add more here... 
 
 
     --	Check row count before truncation
