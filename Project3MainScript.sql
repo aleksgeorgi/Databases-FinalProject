@@ -324,6 +324,11 @@ ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAut
 GO
 
 -- Ahnaf
+ALTER TABLE [ClassManagement].[Days]  WITH CHECK ADD  CONSTRAINT [FK_Days_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_Days_UserAuthorization]
+GO
 ALTER TABLE [ClassManagement].[Days] ADD CONSTRAINT CHK_DayOfWeek
 CHECK (DayAbbreviation IN ('M', 'T', 'W', 'TH', 'F', 'S', 'SU'))
 GO
@@ -332,10 +337,6 @@ GO
 
 ------------------------------- CREATE TABLE VALUED FUNCTIONS ----------------------------
 
--- CREATE TABLE ClassDayTest (
---     CDID INT PRIMARY KEY,
---     DayAbb [Udt].[DayOfWeek]
--- )
 
 
 
