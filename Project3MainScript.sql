@@ -252,8 +252,8 @@ SET QUOTED_IDENTIFIER ON
 GO
 CREATE TABLE  ClassManagement.ModeOfInstruction (
     
-    ModeID INT IDENTITY (1,1),
-	ModeName NVARCHAR(12),
+    ModeID INT IDENTITY (1,1) NOT NULL,
+	ModeName NVARCHAR(12) NOT NULL,
 	 -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
     [DateAdded] [Udt].[DateAdded] NOT NULL,
@@ -609,7 +609,7 @@ GO
 
 
 /*
-Stored Procedure: Project2.[TruncateClassScheduleData]
+Stored Procedure: Project3.[TruncateClassScheduleData]
 
 Description:
 This procedure is designed to truncate tables in the schema of the data warehouse. 
@@ -642,9 +642,11 @@ BEGIN
     TRUNCATE TABLE [Process].[WorkFlowSteps]
     TRUNCATE TABLE [Personnel].[Instructor]
 
+	-- add more here...
 
-    -- add more here...
-
+	-- Nicholas
+	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
+	
 
 
     DECLARE @WorkFlowStepTableRowCount INT;
@@ -742,7 +744,7 @@ GO
 -- Description:	Populate a table to show the mode of instruction
 -- =============================================
 
-CREATE OR ALTER PROCEDURE loadModeOfInstruction
+CREATE OR ALTER PROCEDURE [Project3].[LoadModeOfInstruction]
     -- Add parameters if needed
     @UserAuthorizationKey INT
 AS
@@ -763,7 +765,7 @@ FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
 
 	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
 	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
-    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[ShowStatusRowCount] loads data into ShowTableStatusRowCount',
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadModeOfInstruction] loads data into ShowTableStatusRowCount',
                                        @WorkFlowStepTableRowCount,
                                        @StartingDateTime,
                                        @EndingDateTime,
@@ -867,7 +869,7 @@ BEGIN
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
 
     -- add more here... 
-
+	EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
 
 
     --	Check row count before truncation
