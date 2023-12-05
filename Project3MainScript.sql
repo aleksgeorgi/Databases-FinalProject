@@ -961,7 +961,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
-EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+-- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 -- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
