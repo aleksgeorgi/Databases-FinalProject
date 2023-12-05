@@ -234,6 +234,35 @@ CREATE TABLE [Personnel].[Instructor]
 ) ON [PRIMARY]
 GO
 
+/*
+--Table: [ClassManagement].[ModeOfInstruction]
+
+
+-- =============================================
+-- Author:		Nicholas Kong
+-- Create date: 12/4/23
+-- Description:	Load the names & IDs into the user ModeOfInstruction table
+-- =============================================
+*/
+DROP TABLE IF EXISTS [ClassManagement].[ModeOfInstruction]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE  ClassManagement.ModeOfInstruction (
+    
+    ModeID INT IDENTITY (1,1),
+	ModeName NVARCHAR(12),
+	 -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[ModeID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
 
 
 
@@ -707,7 +736,42 @@ GO
 
 -- add more stored procedures here... 
 
+-- =============================================
+-- Author:		Nicholas Kong
+-- Create date: 12/4/23
+-- Description:	Populate a table to show the mode of instruction
+-- =============================================
 
+CREATE OR ALTER PROCEDURE loadModeOfInstruction
+    -- Add parameters if needed
+    @UserAuthorizationKey INT
+AS
+BEGIN
+
+SET NOCOUNT ON;
+
+DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
+DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+DECLARE @WorkFlowStepTableRowCount INT = 0;
+
+
+INSERT INTO ClassManagement.ModeOfInstruction(ModeName)
+SELECT Q.[Mode of Instruction]
+FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
+-- Additional statements or constraints can be added here
+
+	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[ShowStatusRowCount] loads data into ShowTableStatusRowCount',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+
+END;
+GO
 
 
 
