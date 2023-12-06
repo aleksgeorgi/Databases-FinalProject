@@ -80,7 +80,7 @@ CREATE TYPE [Udt].[DateAdded] FROM [datetime2] NOT NULL
 GO
 CREATE TYPE [Udt].[DateOfLastUpdate] FROM [datetime2] NOT NULL
 GO
-CREATE TYPE [Udt].[SurrogateKeyInt] FROM [int] NULL
+CREATE TYPE [Udt].[SurrogateKeyInt] FROM [int] NOT NULL
 GO
 CREATE TYPE [Udt].[ClassTime] FROM nchar(19) NOT NULL
 GO
@@ -92,6 +92,10 @@ CREATE TYPE [Udt].[FirstName] FROM nvarchar(20) NOT NULL
 GO
 CREATE TYPE [Udt].[GroupName] FROM nvarchar(20) NOT NULL
 GO
+CREATE TYPE [Udt].[CreditHours] FROM [FLOAT] NOT NULL
+GO
+
+
 
 -- Ahnaf
 CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
@@ -106,6 +110,8 @@ CREATE TYPE [Udt].[BuildingNameAbbrv] FROM NVARCHAR(3) NOT NULL;
 GO
 CREATE TYPE [Udt].[BuildingName] FROM NVARCHAR(50) NOT NULL;
 GO
+
+
 
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
 
@@ -254,34 +260,37 @@ CREATE TABLE [Personnel].[Instructor]
 ) ON [PRIMARY]
 GO
 
-/*
 
-Table: [Personnel].[Instructor]
+/*
+Table: [Academic].[Course]
 
 -- =============================================
 -- Author:		Aleksandra Georgievska
--- Create date: 12/4/23
--- Description:	Load the names & IDs into the user Instructor table
--- =============================================
+-- Create date: 12/5/23
+-- Description:	Load the Course Codes, Names, Credit/Course nums into the Course table
+-- =============================================*/
 
-*/
-DROP TABLE IF EXISTS [Personnel].[Instructor]
+DROP TABLE IF EXISTS [Academic].[Course]
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE TABLE [Personnel].[Instructor]
+CREATE TABLE [Academic].[Course] 
 (
-    InstructorID [int] NOT NULL IDENTITY(1, 1), -- primary key
-    FirstName [char](25) NULL, 
-    LastName [char](25) NULL,
+    CourseId INT NOT NULL IDENTITY(1, 1), -- primary key
+    CourseAbbreviation CHAR(5) NOT NULL, -- needs check constraint 
+    CourseNumber CHAR(5) NOT NULL, 
+    CourseCredit FLOAT NOT NULL, -- (Needs Check Constraint to be positive)
+    CreditHours [Udt].[CreditHours] NOT NULL, -- CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
+    CourseName CHAR(35) NOT NULL, -- CourseDescription
+    DepartmentID [int] NOT NULL, -- FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
     -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
     [DateAdded] [Udt].[DateAdded] NOT NULL,
     [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
     PRIMARY KEY CLUSTERED(
-	[InstructorID] ASC
+	[CourseId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
@@ -479,6 +488,15 @@ ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateAdded
 GO
 ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
+ALTER TABLE [Personnel].[Instructor] ADD DEFAULT ('none') FOR [LastName]
+GO
+ALTER TABLE [Personnel].[Instructor] ADD DEFAULT ('none') FOR [FirstName]
+GO
+ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+ALTER TABLE [Academic].[Course] ADD DEFAULT ('unknown') FOR [CourseName]
 
 
 -- Ahnaf
@@ -520,6 +538,24 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
 GO
+ALTER TABLE [Personnel].[Instructor] WITH CHECK ADD  CONSTRAINT [FK_Instructor_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Personnel].[Instructor] CHECK CONSTRAINT [FK_Instructor_UserAuthorization]
+GO
+ALTER TABLE [Academic].[Course] WITH CHECK ADD CONSTRAINT [FK_Course_DepartmentID] FOREIGN KEY([DepartmentID])
+REFERENCES [Academic].[Department] ([DepartmentID])
+GO
+ALTER TABLE [Academic].[Course] WITH CHECK ADD  CONSTRAINT [FK_Course_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Academic].[Course] CHECK CONSTRAINT [FK_Course_UserAuthorization]
+GO
+ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CreditHours_Positive] CHECK (CreditHours >= 0)
+GO
+ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CourseCredit_Positive] CHECK (CourseCredit >= 0)
+GO
+
 
 --Sigi
 ALTER TABLE [Enrollment].[Semester]  WITH CHECK ADD  CONSTRAINT [FK_Semester_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -850,6 +886,16 @@ BEGIN
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
 
+    ALTER TABLE [Academic].[Course]
+    ADD CONSTRAINT FK_Course_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+
+    ALTER TABLE [Academic].[Course]
+    ADD CONSTRAINT FK_Course_DepartmentID
+        FOREIGN KEY (DepartmentID)
+        REFERENCES [Academic].[Department] (DepartmentID)
+
     -- Aryeh
     ALTER TABLE [Academic].[Department]
     ADD CONSTRAINT FK_Department_UserAuthorization
@@ -928,6 +974,8 @@ BEGIN
 
     -- Aleks
     ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT [FK_WorkFlowSteps_UserAuthorization];
+    ALTER TABLE [Academic].[Course] DROP CONSTRAINT [FK_Course_UserAuthorization];
+    ALTER TABLE [Academic].[Course] DROP CONSTRAINT [FK_Course_DepartmentID];
 
     -- Ahnaf
     ALTER TABLE [ClassManagement].[Days] DROP CONSTRAINT [FK_Days_UserAuthorization];
@@ -970,7 +1018,6 @@ Stored Procedure: [Project3].[LoadInstructors]
 -- =============================================
 
 */
-
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -986,8 +1033,9 @@ BEGIN
         FirstName, LastName, UserAuthorizationKey, DateAdded
     )
     SELECT DISTINCT
-        LTRIM(RTRIM(SUBSTRING(Instructor, CHARINDEX(',', Instructor) + 2, LEN(Instructor)))) AS FirstName,
-        LTRIM(RTRIM(SUBSTRING(Instructor, 1, CHARINDEX(',', Instructor) - 1))) AS LastName,
+        -- use COALESCE/NULLIF to check when importing the data from the original table to prevent importing nulls 
+        COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(Instructor, CHARINDEX(',', Instructor) + 2, LEN(Instructor)))), ''), 'none') AS FirstName,
+        COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(Instructor, 1, CHARINDEX(',', Instructor) - 1))), ''), 'none') AS LastName,
         @UserAuthorizationKey, 
         @DateAdded
     FROM
@@ -995,7 +1043,10 @@ BEGIN
     ORDER BY LastName;
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Personnel].[Instructor]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
@@ -1006,6 +1057,76 @@ BEGIN
                                        @UserAuthorizationKey;
 END;
 GO
+
+
+-- =============================================
+-- Author:		Aleksandra Georgievska
+-- Create date: 12/4/23
+-- Description:	Adds the Courses to the Course Table
+-- =============================================
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadCourse] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Academic].[Course](
+        [CourseAbbreviation] -- Course (parse letters)
+        ,[CourseNumber] -- Course (parse number)
+        ,[CourseCredit] -- Course (parse second number in (,))
+        ,[CreditHours] -- Course (parse first number in (,))
+        ,[CourseName] -- Description 
+        ,[DepartmentID] -- fk
+        ,UserAuthorizationKey
+        ,DateAdded
+    )
+    SELECT DISTINCT
+        LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1) -- CourseAbbreviation
+        ,SUBSTRING(
+                [Course (hr, crd)], 
+                PATINDEX('%[0-9]%', [Course (hr, crd)]), 
+                CHARINDEX('(', [Course (hr, crd)]) - PATINDEX('%[0-9]%', [Course (hr, crd)])
+            ) -- CourseNumber
+        ,CAST(SUBSTRING(
+                [Course (hr, crd)], 
+                CHARINDEX(',', [Course (hr, crd)]) + 2, 
+                CHARINDEX(')', [Course (hr, crd)]) - CHARINDEX(',', [Course (hr, crd)]) - 2 
+                ) AS FLOAT) --CourseCredit
+        ,CAST(SUBSTRING(
+                [Course (hr, crd)], 
+                CHARINDEX('(', [Course (hr, crd)]) + 1, 
+                CHARINDEX(',', [Course (hr, crd)]) - CHARINDEX('(', [Course (hr, crd)]) - 1
+                ) AS FLOAT) -- CreditHours 
+        ,C.Description -- CourseName
+        , ( SELECT D.DepartmentID
+            FROM [Academic].[Department] AS D
+            WHERE D.DepartmentName = LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1))  
+        ,@UserAuthorizationKey 
+        ,@DateAdded
+    FROM
+    [Uploadfile].[CurrentSemesterCourseOfferings] AS C;
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Academic].[Course]
+                                    );
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
 
 /*
 Stored Procedure: Project2.[TruncateClassScheduleData]
@@ -1040,6 +1161,7 @@ BEGIN
     TRUNCATE TABLE [DbSecurity].[UserAuthorization]
     TRUNCATE TABLE [Process].[WorkFlowSteps]
     TRUNCATE TABLE [Personnel].[Instructor]
+    TRUNCATE TABLE [Academic].[Course]
 
     -- Aryeh
     TRUNCATE TABLE [Academic].[Department]
@@ -1124,6 +1246,11 @@ BEGIN
             TableName = '[Personnel].[Instructor]',
             [Row Count] = COUNT(*)
         FROM [Personnel].[Instructor]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Academic].[Course]',
+            [Row Count] = COUNT(*)
+        FROM [Academic].[Course] 
     -- Ahnaf
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1499,25 +1626,25 @@ BEGIN
 
     -- ADD EXEC COMMANDS:
 
+    -- TIER ONE TABLE LOADS
     -- Aleks
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
-
     -- Aryeh
     EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6	
-    
     -- Nicholas
     EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
-
     -- Ahnaf
     EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
-
     -- Sigi
     EXEC [Project3].[LoadSemesters] @UserAuthorizationKey = 2
-
     -- Edwin
     EXEC [Project3].[LoadBuildingLocations] @UserAuthorizationKey = 4	
 
+
+    -- TIER 2 TABLE LOADS
+    -- Aleks
+    EXEC [Project3].[LoadCourse] @UserAuthorizationKey = 1
 
     -- add more here... 
 
@@ -1534,7 +1661,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 -- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
