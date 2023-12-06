@@ -358,6 +358,30 @@ CREATE TABLE  [ClassManagement].[ModeOfInstruction] (
 GO
 
 
+-- Nicholas
+DROP TABLE IF EXISTS [Facilities].[RoomLocation]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Facilities].[RoomLocation] (
+    RoomID INT IDENTITY(1,1) NOT NULL,
+    RoomNumber VARCHAR(12) NULL,
+    BuildingCode INT,  -- Assuming BuildingCode is INT; adjust the data type as needed
+    FOREIGN KEY (BuildingCode) REFERENCES BuildingLocation(BuildingCode),
+	 -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[RoomID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
+
 -- Ahnaf
 /*
 
@@ -541,6 +565,11 @@ ALTER TABLE [ClassManagement].[ModeOfInstruction] ADD  DEFAULT (sysdatetime()) F
 GO
 ALTER TABLE [ClassManagement].[ModeOfInstruction] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
+ALTER TABLE [Facilities].[RoomLocation] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Facilities].[RoomLocation]  ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
 
 --Sigi
 ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -614,6 +643,11 @@ ALTER TABLE [ClassManagement].[ModeOfInstruction]  WITH CHECK ADD  CONSTRAINT [F
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [ClassManagement].[ModeOfInstruction] CHECK CONSTRAINT [FK_ModeOfInst_UserAuthorization]
+GO
+ALTER TABLE [Facilities].[RoomLocation]  WITH CHECK ADD  CONSTRAINT [FK_RoomLocation_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Facilities].[RoomLocation]  CHECK CONSTRAINT [FK_RoomLocation_UserAuthorization]
 GO
 
 -- Aryeh
@@ -977,6 +1011,11 @@ BEGIN
         FOREIGN KEY([UserAuthorizationKey])
         REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
+	ALTER TABLE [Facilites].[RoomLocation]  
+    ADD  CONSTRAINT [FK_RoomLocation_UserAuthorization] 
+        FOREIGN KEY([UserAuthorizationKey])
+        REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
+
     -- Edwin
     ALTER TABLE [Facilities].[BuildingLocations]
     ADD CONSTRAINT FK_BuildingLocations_UserAuthorization
@@ -1039,6 +1078,8 @@ BEGIN
 
     -- Nicholas
     ALTER TABLE [ClassManagement].[ModeOfInstruction] DROP CONSTRAINT [FK_ModeOfInst_UserAuthorization];
+	ALTER TABLE [Facilities].[RoomLocation] DROP CONSTRAINT [FK_RoomLocation_UserAuthorization];
+
 
     -- Sigi
     ALTER TABLE [Enrollment].[Semester] DROP CONSTRAINT FK_Semester_UserAuthorization;
@@ -1229,6 +1270,7 @@ BEGIN
 
 	-- Nicholas
 	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
+	TRUNCATE TABLE [Project3].[LoadRoomLocation]
 	
     -- Ahnaf
     TRUNCATE TABLE [ClassManagement].[Days]
@@ -1504,6 +1546,57 @@ BEGIN
 END;
 GO
 
+-- =============================================
+-- Author:		Nicholas Kong
+-- Create date: 12/6/23
+-- Description:	Populate a table to show the room location
+-- =============================================
+
+CREATE OR ALTER PROCEDURE [Project3].[LoadRoomLocation]
+    -- Add parameters if needed
+    @UserAuthorizationKey INT
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @WorkFlowStepTableRowCount INT = 0;
+
+	INSERT INTO [Facilities].[RoomLocation](RoomNumber)
+	SELECT
+    Q.Location,
+    CASE
+		-- add the edge cases and then manually set it correctly
+        WHEN RIGHT(Q.Location, 4) = 'H 17' THEN '17'
+        WHEN RIGHT(Q.Location, 4) = '135H' THEN 'A135H'
+		WHEN RIGHT(Q.Location, 4) = '135B' THEN 'A135B'
+		WHEN RIGHT(Q.Location, 4) = 'H 09' THEN '09'
+		WHEN RIGHT(Q.Location, 4) = 'H 12' THEN '12'
+
+		-- checks for null and empty string, if so set default string named TBD
+       WHEN Q.Location IS NULL OR LTRIM(RTRIM(Q.Location)) = '' THEN 'TBD'
+        ELSE RIGHT(Q.Location, 4)
+    END AS ParsingRoomNumber
+	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
+
+    -- Additional statements or constraints can be added here
+
+	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadRoomLocation] loads data into ShowTableStatusRowCount',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+
+END;
+GO
+
+
 /*
 Stored Procedure: [Project3].[LoadDepartments]
 
@@ -1748,6 +1841,7 @@ BEGIN
     
     -- Nicholas
     EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
+
     -- Ahnaf
     EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
     -- Sigi
@@ -1763,6 +1857,8 @@ BEGIN
     -- Aryeh
     EXEC [Project3].[LoadDepartmentInstructor] @UserAuthorizationKey = 6
 
+    -- Nicholas
+    EXEC [Project3].[LoadRoomLocation]  @UserAuthorizationKey = 3
 
     -- add more here... 
 
