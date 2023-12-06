@@ -92,8 +92,10 @@ CREATE TYPE [Udt].[FirstName] FROM nvarchar(20) NOT NULL
 GO
 CREATE TYPE [Udt].[GroupName] FROM nvarchar(20) NOT NULL
 GO
-CREATE TYPE [Udt].[CreditHours] FROM [int] NOT NULL
+CREATE TYPE [Udt].[CreditHours] FROM [FLOAT] NOT NULL
 GO
+
+
 
 -- Ahnaf
 CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
@@ -109,8 +111,6 @@ GO
 CREATE TYPE [Udt].[BuildingName] FROM NVARCHAR(50) NOT NULL;
 GO
 
--- Edwin
--- add BuildingName UDT Create script here
 
 
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
@@ -262,21 +262,6 @@ GO
 
 
 /*
-Table #3
-[Academic].[Course] Table
-CourseID (PK)
-CourseCode
-CourseName
-CourseCredit (Needs Check Constraint)
-CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
-CourseDescription
-FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
-
-UDT Suggestions
-CreditHours Type: If credit hours in your courses have certain constraints (like being a positive number, possibly with a maximum limit), a UDT can enforce these rules wherever credit hours are used in the database.
-
-
-
 Table: [Academic].[Course]
 
 -- =============================================
@@ -294,11 +279,11 @@ GO
 CREATE TABLE [Academic].[Course] 
 (
     CourseId INT NOT NULL IDENTITY(1, 1), -- primary key
-    CourseCode INT NOT NULL, 
-    CourseName CHAR(5) NOT NULL, 
-    CourseCredit INT NOT NULL, -- (Needs Check Constraint to be positive)
+    CourseAbbreviation CHAR(5) NOT NULL, -- needs check constraint 
+    CourseNumber CHAR(5) NOT NULL, 
+    CourseCredit FLOAT NOT NULL, -- (Needs Check Constraint to be positive)
     CreditHours [Udt].[CreditHours] NOT NULL, -- CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
-    CourseDescription VARCHAR(35) NULL, -- CourseDescription
+    CourseName CHAR(35) NOT NULL, -- CourseDescription
     DepartmentID [int] NOT NULL, -- FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
     -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
@@ -511,8 +496,8 @@ ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
-ALTER TABLE [Academic].[Course] ADD DEFAULT ('unknown') FOR [CourseDescription]
-GO
+ALTER TABLE [Academic].[Course] ADD DEFAULT ('unknown') FOR [CourseName]
+
 
 -- Ahnaf
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -558,15 +543,19 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Personnel].[Instructor] CHECK CONSTRAINT [FK_Instructor_UserAuthorization]
 GO
+ALTER TABLE [Academic].[Course] WITH CHECK ADD CONSTRAINT [FK_Course_DepartmentID] FOREIGN KEY([DepartmentID])
+REFERENCES [Academic].[Department] ([DepartmentID])
+GO
+ALTER TABLE [Academic].[Course] WITH CHECK ADD  CONSTRAINT [FK_Course_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
 ALTER TABLE [Academic].[Course] CHECK CONSTRAINT [FK_Course_UserAuthorization]
 GO
 ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CreditHours_Positive] CHECK (CreditHours >= 0)
 GO
 ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CourseCredit_Positive] CHECK (CourseCredit >= 0)
 GO
-ALTER TABLE [Academic].[Course] WITH CHECK ADD CONSTRAINT [FK_Course_DepartmentID] FOREIGN KEY([DepartmentID])
-REFERENCES [Academic].[Department] ([DepartmentID])
-GO
+
 
 --Sigi
 ALTER TABLE [Enrollment].[Semester]  WITH CHECK ADD  CONSTRAINT [FK_Semester_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -897,6 +886,16 @@ BEGIN
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
 
+    ALTER TABLE [Academic].[Course]
+    ADD CONSTRAINT FK_Course_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+
+    ALTER TABLE [Academic].[Course]
+    ADD CONSTRAINT FK_Course_DepartmentID
+        FOREIGN KEY (DepartmentID)
+        REFERENCES [Academic].[Department] (DepartmentID)
+
     -- Aryeh
     ALTER TABLE [Academic].[Department]
     ADD CONSTRAINT FK_Department_UserAuthorization
@@ -975,6 +974,8 @@ BEGIN
 
     -- Aleks
     ALTER TABLE [Process].[WorkflowSteps] DROP CONSTRAINT [FK_WorkFlowSteps_UserAuthorization];
+    ALTER TABLE [Academic].[Course] DROP CONSTRAINT [FK_Course_UserAuthorization];
+    ALTER TABLE [Academic].[Course] DROP CONSTRAINT [FK_Course_DepartmentID];
 
     -- Ahnaf
     ALTER TABLE [ClassManagement].[Days] DROP CONSTRAINT [FK_Days_UserAuthorization];
@@ -1058,35 +1059,11 @@ END;
 GO
 
 
--- CREATE TABLE [Academic].[Course] 
--- (
---     CourseId INT NOT NULL IDENTITY(1, 1), -- primary key
---     CourseCode INT NOT NULL, 
---     CourseName CHAR(5) NOT NULL, 
---     CourseCredit INT NOT NULL, -- (Needs Check Constraint to be positive)
---     CreditHours [Udt].[CreditHours] NOT NULL, -- CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
---     CourseDescription VARCHAR(35) NULL, -- CourseDescription
---     DepartmentID [int] NOT NULL, -- FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
---     -- all tables must have the following 3 columns:
---     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
---     [DateAdded] [Udt].[DateAdded] NOT NULL,
---     [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
---     PRIMARY KEY CLUSTERED(
--- 	[CourseId] ASC
--- )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
--- ) ON [PRIMARY]
--- GO
-
-/*
-Stored Procedure: [Project3].[LoadCourse]
-
 -- =============================================
 -- Author:		Aleksandra Georgievska
 -- Create date: 12/4/23
 -- Description:	Adds the Courses to the Course Table
 -- =============================================
-
-*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1099,22 +1076,40 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
 
     INSERT INTO [Academic].[Course](
-        [CourseCode]
-        ,[CourseName]
-        ,[CourseCredit]
-        ,[CreditHours]
-        ,[CourseDescription]
-        ,[DepartmentID], 
-        UserAuthorizationKey, 
-        DateAdded
+        [CourseAbbreviation] -- Course (parse letters)
+        ,[CourseNumber] -- Course (parse number)
+        ,[CourseCredit] -- Course (parse second number in (,))
+        ,[CreditHours] -- Course (parse first number in (,))
+        ,[CourseName] -- Description 
+        ,[DepartmentID] -- fk
+        ,UserAuthorizationKey
+        ,DateAdded
     )
     SELECT DISTINCT
-
-        -- add parsing code here for getting code data from source table 
-        @UserAuthorizationKey, 
-        @DateAdded
+        LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1) -- CourseAbbreviation
+        ,SUBSTRING(
+                [Course (hr, crd)], 
+                PATINDEX('%[0-9]%', [Course (hr, crd)]), 
+                CHARINDEX('(', [Course (hr, crd)]) - PATINDEX('%[0-9]%', [Course (hr, crd)])
+            ) -- CourseNumber
+        ,CAST(SUBSTRING(
+                [Course (hr, crd)], 
+                CHARINDEX(',', [Course (hr, crd)]) + 2, 
+                CHARINDEX(')', [Course (hr, crd)]) - CHARINDEX(',', [Course (hr, crd)]) - 2 
+                ) AS FLOAT) --CourseCredit
+        ,CAST(SUBSTRING(
+                [Course (hr, crd)], 
+                CHARINDEX('(', [Course (hr, crd)]) + 1, 
+                CHARINDEX(',', [Course (hr, crd)]) - CHARINDEX('(', [Course (hr, crd)]) - 1
+                ) AS FLOAT) -- CreditHours 
+        ,C.Description -- CourseName
+        , ( SELECT D.DepartmentID
+            FROM [Academic].[Department] AS D
+            WHERE D.DepartmentName = LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1))  
+        ,@UserAuthorizationKey 
+        ,@DateAdded
     FROM
-    [Uploadfile].[CurrentSemesterCourseOfferings];
+    [Uploadfile].[CurrentSemesterCourseOfferings] AS C;
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = (
@@ -1166,6 +1161,7 @@ BEGIN
     TRUNCATE TABLE [DbSecurity].[UserAuthorization]
     TRUNCATE TABLE [Process].[WorkFlowSteps]
     TRUNCATE TABLE [Personnel].[Instructor]
+    TRUNCATE TABLE [Academic].[Course]
 
     -- Aryeh
     TRUNCATE TABLE [Academic].[Department]
@@ -1250,6 +1246,11 @@ BEGIN
             TableName = '[Personnel].[Instructor]',
             [Row Count] = COUNT(*)
         FROM [Personnel].[Instructor]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Academic].[Course]',
+            [Row Count] = COUNT(*)
+        FROM [Academic].[Course] 
     -- Ahnaf
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1625,26 +1626,25 @@ BEGIN
 
     -- ADD EXEC COMMANDS:
 
+    -- TIER ONE TABLE LOADS
     -- Aleks
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
-    EXEC [Project3].[LoadCourse] @UserAuthorizationKey = 1
-
     -- Aryeh
     EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6	
-    
     -- Nicholas
     EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
-
     -- Ahnaf
     EXEC [Project3].[LoadDays] @UserAuthorizationKey = 5
-
     -- Sigi
     EXEC [Project3].[LoadSemesters] @UserAuthorizationKey = 2
-
     -- Edwin
     EXEC [Project3].[LoadBuildingLocations] @UserAuthorizationKey = 4	
 
+
+    -- TIER 2 TABLE LOADS
+    -- Aleks
+    EXEC [Project3].[LoadCourse] @UserAuthorizationKey = 1
 
     -- add more here... 
 
@@ -1661,7 +1661,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 -- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
