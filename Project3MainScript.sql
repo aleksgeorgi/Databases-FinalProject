@@ -1,8 +1,8 @@
 --------------------------------------- CREATE THE DATABASE ------------------------------------------
 -- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
--- CREATE DATABASE [ClassSchedule_9:15_Group1];
--- GO
+CREATE DATABASE [ClassSchedule_9:15_Group1];
+GO
 
 -- USE master
 -- DROP DATABASE [ClassSchedule_9:15_Group1]
@@ -369,7 +369,7 @@ CREATE TABLE [Facilities].[RoomLocation] (
     RoomID INT IDENTITY(1,1) NOT NULL,
     RoomNumber VARCHAR(12) NULL,
     BuildingCode INT,  -- Assuming BuildingCode is INT; adjust the data type as needed
-    FOREIGN KEY (BuildingCode) REFERENCES BuildingLocation(BuildingCode),
+    -- FOREIGN KEY (BuildingCode) REFERENCES BuildingLocation(BuildingCode),
 	 -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
     [DateAdded] [Udt].[DateAdded] NOT NULL,
@@ -1875,7 +1875,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
-EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+-- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 -- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
