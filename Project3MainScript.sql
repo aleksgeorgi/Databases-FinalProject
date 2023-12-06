@@ -1,12 +1,12 @@
 --------------------------------------- CREATE THE DATABASE ------------------------------------------
 -- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
-CREATE DATABASE [ClassSchedule_9:15_Group1];
-GO
+--CREATE DATABASE [ClassSchedule_9:15_Group1];
+--GO
 
 -- USE master
--- DROP DATABASE [ClassSchedule_9:15_Group1]
--- GO
+--DROP DATABASE [ClassSchedule_9:15_Group1]
+--GO
 
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
@@ -1565,9 +1565,8 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @WorkFlowStepTableRowCount INT = 0;
 
-	INSERT INTO [Facilities].[RoomLocation](RoomNumber)
+	INSERT INTO [Facilities].[RoomLocation](RoomNumber,UserAuthorizationKey, DateAdded)
 	SELECT
-    Q.Location,
     CASE
 		-- add the edge cases and then manually set it correctly
         WHEN RIGHT(Q.Location, 4) = 'H 17' THEN '17'
@@ -1579,7 +1578,7 @@ BEGIN
 		-- checks for null and empty string, if so set default string named TBD
        WHEN Q.Location IS NULL OR LTRIM(RTRIM(Q.Location)) = '' THEN 'TBD'
         ELSE RIGHT(Q.Location, 4)
-    END AS ParsingRoomNumber
+    END AS RoomNumber, @UserAuthorizationKey, @DateAdded
 	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
 
     -- Additional statements or constraints can be added here
