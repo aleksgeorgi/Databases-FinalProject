@@ -96,7 +96,6 @@ CREATE TYPE [Udt].[CreditHours] FROM [FLOAT] NOT NULL
 GO
 
 
-
 -- Ahnaf
 CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
 GO
@@ -424,6 +423,38 @@ GO
 
 /*
 
+Table: [Personnel].[DepartmentInstructor]
+
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/6/23
+-- Description:	Create a bridge table between departments and instructors
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [Personnel].[DepartmentInstructor]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Personnel].[DepartmentInstructor]
+(
+    DepartmentInstructorID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    DepartmentID [int] NOT NULL,
+    InstructorID [int] NOT NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[DepartmentInstructorID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/*
+
 Table: [Facilities].[BuildingLocations]
 
 -- =============================================
@@ -522,6 +553,10 @@ ALTER TABLE [Academic].[Department] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [Academic].[Department] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
+ALTER TABLE [Personnel].[DepartmentInstructor] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -587,6 +622,21 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Academic].[Department] CHECK CONSTRAINT [FK_Department_UserAuthorization]
 GO
+ALTER TABLE [Personnel].[DepartmentInstructor]  WITH CHECK ADD  CONSTRAINT [FK_DepartmentInstructor_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_UserAuthorization]
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor]  WITH CHECK ADD  CONSTRAINT [FK_DepartmentInstructor_Department] FOREIGN KEY([DepartmentID])
+REFERENCES [Academic].[Department] ([DepartmentID])
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_Department]
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor]  WITH CHECK ADD  CONSTRAINT [FK_DepartmentInstructor_Instructor] FOREIGN KEY([InstructorID])
+REFERENCES [Personnel].[Instructor] ([InstructorID])
+GO
+ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_Instructor]
+GO
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations]  WITH CHECK ADD  CONSTRAINT [FK_BuildingLocations_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -594,9 +644,6 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Facilities].[BuildingLocations] CHECK CONSTRAINT [FK_BuildingLocations_UserAuthorization]
 GO
-
-
-
 
 ------------------------------- CREATE TABLE VALUED FUNCTIONS ----------------------------
 
@@ -885,12 +932,10 @@ BEGIN
     ADD CONSTRAINT FK_WorkFlowSteps_UserAuthorization
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
-
     ALTER TABLE [Academic].[Course]
     ADD CONSTRAINT FK_Course_UserAuthorization
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
-
     ALTER TABLE [Academic].[Course]
     ADD CONSTRAINT FK_Course_DepartmentID
         FOREIGN KEY (DepartmentID)
@@ -901,6 +946,18 @@ BEGIN
     ADD CONSTRAINT FK_Department_UserAuthorization
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+    ALTER TABLE [Personnel].[DepartmentInstructor]
+    ADD CONSTRAINT FK_DepartmentInstructor_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+    ALTER TABLE [Personnel].[DepartmentInstructor]
+    ADD CONSTRAINT FK_DepartmentInstructor_Department
+        FOREIGN KEY (DepartmentID)
+        REFERENCES [Academic].[Department] (DepartmentID);
+    ALTER TABLE [Personnel].[DepartmentInstructor]
+    ADD CONSTRAINT FK_Department_Instructor
+        FOREIGN KEY (InstructorID)
+        REFERENCES [Personnel].[Instructor] (InstructorID);
 
     -- Sigi
     ALTER TABLE [Enrollment].[Semester]
@@ -988,6 +1045,9 @@ BEGIN
 
     -- Aryeh
     ALTER TABLE [Academic].[Department] DROP CONSTRAINT FK_Department_UserAuthorization;
+    ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_UserAuthorization;
+    ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_Department;
+    ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_Instructor;
 
     -- Edwin
     ALTER TABLE [Facilities].[BuildingLocations] DROP CONSTRAINT FK_BuildingLocations_UserAuthorization;
@@ -1165,6 +1225,7 @@ BEGIN
 
     -- Aryeh
     TRUNCATE TABLE [Academic].[Department]
+    TRUNCATE TABLE [Personnel].[DepartmentInstructor]
 
 	-- Nicholas
 	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
@@ -1275,7 +1336,11 @@ BEGIN
             TableName = '[Academic].[Department]',
             [Row Count] = COUNT(*)
         FROM [Academic].[Department]
-    
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Personnel].[DepartmentInstructor]',
+            [Row Count] = COUNT(*)
+        FROM [Personnel].[DepartmentInstructor]
     -- Edwin
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1440,7 +1505,7 @@ END;
 GO
 
 /*
-Stored Procedure: [Project3].[LoadInstructors]
+Stored Procedure: [Project3].[LoadDepartments]
 
 -- =============================================
 -- Author:		Aryeh Richman
@@ -1483,6 +1548,53 @@ BEGIN
                                        @UserAuthorizationKey;
 END;
 GO
+
+/*
+Stored Procedure: [Project3].[LoadDepartmentInstructor]
+
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/6/23
+-- Description:	Adds the values to the Department / Instructor bridge table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadDepartmentInstructor] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Personnel].[DepartmentInstructor] (
+        DepartmentID, InstructorID, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT D.DepartmentID, I.InstructorID, @UserAuthorizationKey, @DateAdded
+    FROM Academic.Department AS D
+        CROSS JOIN Personnel.Instructor AS I
+        INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
+            ON LEFT(U.[Course (hr, crd)], CHARINDEX(' ', U.[Course (hr, crd)]) - 1) = D.DepartmentName
+            AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName
+            AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Department Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
 
 /*
 Stored Procedure: [Project3].[LoadBuildingLocations]
@@ -1630,8 +1742,10 @@ BEGIN
     -- Aleks
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
+    
     -- Aryeh
-    EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6	
+    EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6
+    
     -- Nicholas
     EXEC [Project3].[LoadModeOfInstruction] @UserAuthorizationKey = 3
     -- Ahnaf
@@ -1645,6 +1759,10 @@ BEGIN
     -- TIER 2 TABLE LOADS
     -- Aleks
     EXEC [Project3].[LoadCourse] @UserAuthorizationKey = 1
+
+    -- Aryeh
+    EXEC [Project3].[LoadDepartmentInstructor] @UserAuthorizationKey = 6
+
 
     -- add more here... 
 
