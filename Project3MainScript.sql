@@ -100,7 +100,13 @@ CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
 GO
 
 -- Sigi
-CREATE TYPE [Udt].SemesterName FROM NVARCHAR(20);
+CREATE TYPE [Udt].SemesterName FROM NVARCHAR(20)
+GO
+
+-- Edwin
+CREATE TYPE [Udt].[BuildingNameAbbrv] FROM NVARCHAR(3) NOT NULL;
+GO
+CREATE TYPE [Udt].[BuildingName] FROM NVARCHAR(50) NOT NULL;
 GO
 
 -- Edwin
@@ -431,6 +437,37 @@ CREATE TABLE [Academic].[Department]
 ) ON [PRIMARY]
 GO
 
+/*
+
+Table: [Facilities].[BuildingLocations]
+
+-- =============================================
+-- Author:		Edwin Wray
+-- Create date: 12/5/23
+-- Description:	Create BuildingLocations table with building id and names
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [Facilities].[BuildingLocations]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Facilities].[BuildingLocations]
+(
+    BuildingID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    BuildingNameAbbrv [Udt].[BuildingNameAbbrv] NOT NULL,
+    BuildingName [Udt].[BuildingName] NOT NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[BuildingID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
 
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
 
@@ -501,6 +538,12 @@ GO
 ALTER TABLE [Academic].[Department] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
+-- Edwin
+ALTER TABLE [Facilities].[BuildingLocations] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Facilities].[BuildingLocations] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
 
 -- add check constraints in the following format: 
 
@@ -556,6 +599,13 @@ GO
 ALTER TABLE [Academic].[Department] CHECK CONSTRAINT [FK_Department_UserAuthorization]
 GO
 
+-- Edwin
+ALTER TABLE [Facilities].[BuildingLocations]  WITH CHECK ADD  CONSTRAINT [FK_BuildingLocations_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Facilities].[BuildingLocations] CHECK CONSTRAINT [FK_BuildingLocations_UserAuthorization]
+GO
+
 
 
 
@@ -601,6 +651,79 @@ END;
 
 GO
 
+
+--Edwin
+-- Create a function to determine the BuildingName
+CREATE FUNCTION [Udt].[GetBuildingNameAbbrv](@Location VARCHAR(50))
+RETURNS [Udt].[BuildingNameAbbrv]
+AS
+BEGIN
+    IF @Location IS NULL OR LTRIM(RTRIM(@Location)) = ''
+        RETURN 'TBD';
+
+    DECLARE @BuildingNameAbbrv [Udt].[BuildingNameAbbrv];
+    SET @BuildingNameAbbrv = 
+        CASE 
+            WHEN CHARINDEX(' ', @Location) > 0 
+            THEN LEFT(@Location, CHARINDEX(' ', @Location) - 1)
+            ELSE 'TBD'
+        END;
+        
+    RETURN @BuildingNameAbbrv;
+END;
+GO
+
+
+-- Create a function to determine the BuildingName
+CREATE FUNCTION [Udt].[GetBuildingName](@Location VARCHAR(50))
+RETURNS [Udt].[BuildingName]
+AS
+BEGIN
+    -- Return 'TBD' if the input is NULL or an empty string
+    IF @Location IS NULL OR LTRIM(RTRIM(@Location)) = ''
+        RETURN 'TBD';
+
+    DECLARE @BuildingNameAbbrv NVARCHAR(2);
+    SET @BuildingNameAbbrv = [Udt].[GetBuildingNameAbbrv](@Location);
+
+    DECLARE @BuildingName [Udt].[BuildingName];
+    SET @BuildingName = 
+        CASE
+            WHEN @BuildingNameAbbrv = 'AE' THEN 'Alumni Hall'
+            WHEN @BuildingNameAbbrv = 'CD' THEN 'Campbell Dome'
+            WHEN @BuildingNameAbbrv = 'CA' THEN 'Colden Auditorium'
+            WHEN @BuildingNameAbbrv = 'CH' THEN 'Colwin Hall'
+            WHEN @BuildingNameAbbrv = 'CI' THEN 'Continuing Ed 1'
+            WHEN @BuildingNameAbbrv = 'DY' THEN 'Delany Hall'
+            WHEN @BuildingNameAbbrv = 'DH' THEN 'Dining Hall'
+            WHEN @BuildingNameAbbrv = 'FG' THEN 'FitzGerald Gym'
+            WHEN @BuildingNameAbbrv = 'FH' THEN 'Frese Hall'
+            WHEN @BuildingNameAbbrv = 'GB' THEN 'G Building'
+            WHEN @BuildingNameAbbrv = 'GC' THEN 'Gertz Center'
+            WHEN @BuildingNameAbbrv = 'GT' THEN 'Goldstein Theatre'
+            WHEN @BuildingNameAbbrv = 'HH' THEN 'Honors Hall'
+            WHEN @BuildingNameAbbrv = 'IB' THEN 'I Building'
+            WHEN @BuildingNameAbbrv = 'JH' THEN 'Jefferson Hall'
+            WHEN @BuildingNameAbbrv = 'KY' THEN 'Kiely Hall'
+            WHEN @BuildingNameAbbrv = 'KG' THEN 'King Hall'
+            WHEN @BuildingNameAbbrv = 'KS' THEN 'Kissena Hall'
+            WHEN @BuildingNameAbbrv = 'KP' THEN 'Klapper Hall'
+            WHEN @BuildingNameAbbrv = 'MU' THEN 'Music Building'
+            WHEN @BuildingNameAbbrv = 'PH' THEN 'Powdermaker Hall'
+            WHEN @BuildingNameAbbrv = 'QH' THEN 'Queens Hall'
+            WHEN @BuildingNameAbbrv = 'RA' THEN 'Rathaus Hall'
+            WHEN @BuildingNameAbbrv = 'RZ' THEN 'Razran Hall'
+            WHEN @BuildingNameAbbrv = 'RE' THEN 'Remsen Hall'
+            WHEN @BuildingNameAbbrv = 'RO' THEN 'Rosenthal Library'
+            WHEN @BuildingNameAbbrv = 'SB' THEN 'Science Building'
+            WHEN @BuildingNameAbbrv = 'SU' THEN 'Student Union'
+            WHEN @BuildingNameAbbrv = 'C2' THEN 'Tech Incubator'
+            ELSE 'TBD' -- Default case for any other or unexpected abbreviation
+        END;
+
+    RETURN @BuildingName;
+END;
+GO
 
 
 --------------------------------- Create Stored Procedures -------------------------------
@@ -798,6 +921,12 @@ BEGIN
         FOREIGN KEY([UserAuthorizationKey])
         REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
+    -- Edwin
+    ALTER TABLE [Facilities].[BuildingLocations]
+    ADD CONSTRAINT FK_BuildingLocations_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+
     -- add more here...
 
 
@@ -858,6 +987,9 @@ BEGIN
 
     -- Aryeh
     ALTER TABLE [Academic].[Department] DROP CONSTRAINT FK_Department_UserAuthorization;
+
+    -- Edwin
+    ALTER TABLE [Facilities].[BuildingLocations] DROP CONSTRAINT FK_BuildingLocations_UserAuthorization;
 
     -- add more here...
 
@@ -1047,6 +1179,9 @@ BEGIN
     -- Sigi
     TRUNCATE TABLE [Enrollment].[Semester]
 
+    -- Edwin
+    TRUNCATE TABLE [Facilities].[BuildingLocations]
+
     -- add more here...
 
     DECLARE @WorkFlowStepTableRowCount INT;
@@ -1139,6 +1274,13 @@ BEGIN
             TableName = '[Academic].[Department]',
             [Row Count] = COUNT(*)
         FROM [Academic].[Department]
+    
+    -- Edwin
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Facilities].[BuildingLocations]',
+            [Row Count] = COUNT(*)
+        FROM [Facilities].[BuildingLocations]
 
     -- add more here... 
     ;
@@ -1254,6 +1396,7 @@ GO
 -- Description:	Populate a table to show the mode of instruction
 -- =============================================
 
+
 CREATE OR ALTER PROCEDURE [Project3].[LoadModeOfInstruction]
     -- Add parameters if needed
     @UserAuthorizationKey INT
@@ -1267,9 +1410,19 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @WorkFlowStepTableRowCount INT = 0;
 
+    -- INSERT INTO [Enrollment].[Semester](
+    --     SemesterName, UserAuthorizationKey, DateAdded
+    -- )
+    -- SELECT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
 
-    INSERT INTO ClassManagement.ModeOfInstruction(ModeName)
-    SELECT Q.[Mode of Instruction]
+
+    INSERT INTO ClassManagement.ModeOfInstruction(
+                                                ModeName, 
+                                                UserAuthorizationKey, 
+                                                DateAdded)
+    SELECT  Q.[Mode of Instruction], 
+            @UserAuthorizationKey, 
+            @DateAdded
     FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
     -- Additional statements or constraints can be added here
 
@@ -1284,6 +1437,7 @@ BEGIN
 
 END;
 GO
+
 /*
 Stored Procedure: [Project3].[LoadInstructors]
 
@@ -1329,7 +1483,51 @@ BEGIN
 END;
 GO
 
+/*
+Stored Procedure: [Project3].[LoadBuildingLocations]
 
+-- =============================================
+-- Author:		Edwin Wray
+-- Create date: 12/5/23
+-- Description:	Adds the BuildingLocations to the BuildingLocations Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadBuildingLocations] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Facilities].[BuildingLocations] (
+        BuildingNameAbbrv, BuildingName, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT
+        [UDT].[GetBuildingNameAbbrv]([Location]) AS BuildingNameAbbrv,
+        [UDT].[GetBuildingName]([Location]) AS BuildingName,
+        @UserAuthorizationKey, 
+        @DateAdded
+    FROM [Uploadfile].[CurrentSemesterCourseOfferings]
+    ORDER BY BuildingName
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add BuildingLocations Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
 
 
 
@@ -1443,6 +1641,9 @@ BEGIN
 
     -- Sigi
     EXEC [Project3].[LoadSemesters] @UserAuthorizationKey = 2
+
+    -- Edwin
+    EXEC [Project3].[LoadBuildingLocations] @UserAuthorizationKey = 4	
 
 
     -- add more here... 
