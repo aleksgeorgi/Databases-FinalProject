@@ -604,12 +604,16 @@ END;
 
 GO
 
+
 --Edwin
 -- Create a function to determine the BuildingName
 CREATE FUNCTION [Udt].[GetBuildingNameAbbrv](@Location VARCHAR(50))
 RETURNS [Udt].[BuildingNameAbbrv]
 AS
 BEGIN
+    IF @Location IS NULL OR LTRIM(RTRIM(@Location)) = ''
+        RETURN 'TBD';
+
     DECLARE @BuildingNameAbbrv [Udt].[BuildingNameAbbrv];
     SET @BuildingNameAbbrv = 
         CASE 
@@ -622,11 +626,16 @@ BEGIN
 END;
 GO
 
+
 -- Create a function to determine the BuildingName
 CREATE FUNCTION [Udt].[GetBuildingName](@Location VARCHAR(50))
 RETURNS [Udt].[BuildingName]
 AS
 BEGIN
+    -- Return 'TBD' if the input is NULL or an empty string
+    IF @Location IS NULL OR LTRIM(RTRIM(@Location)) = ''
+        RETURN 'TBD';
+
     DECLARE @BuildingNameAbbrv NVARCHAR(2);
     SET @BuildingNameAbbrv = [Udt].[GetBuildingNameAbbrv](@Location);
 
@@ -662,7 +671,7 @@ BEGIN
             WHEN @BuildingNameAbbrv = 'SB' THEN 'Science Building'
             WHEN @BuildingNameAbbrv = 'SU' THEN 'Student Union'
             WHEN @BuildingNameAbbrv = 'C2' THEN 'Tech Incubator'
-            WHEN @BuildingNameAbbrv = 'TBD' THEN 'TBD'
+            ELSE 'TBD' -- Default case for any other or unexpected abbreviation
         END;
 
     RETURN @BuildingName;
@@ -1261,6 +1270,7 @@ GO
 -- Description:	Populate a table to show the mode of instruction
 -- =============================================
 
+
 CREATE OR ALTER PROCEDURE [Project3].[LoadModeOfInstruction]
     -- Add parameters if needed
     @UserAuthorizationKey INT
@@ -1274,9 +1284,19 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @WorkFlowStepTableRowCount INT = 0;
 
+    -- INSERT INTO [Enrollment].[Semester](
+    --     SemesterName, UserAuthorizationKey, DateAdded
+    -- )
+    -- SELECT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
 
-    INSERT INTO ClassManagement.ModeOfInstruction(ModeName)
-    SELECT Q.[Mode of Instruction]
+
+    INSERT INTO ClassManagement.ModeOfInstruction(
+                                                ModeName, 
+                                                UserAuthorizationKey, 
+                                                DateAdded)
+    SELECT  Q.[Mode of Instruction], 
+            @UserAuthorizationKey, 
+            @DateAdded
     FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
     -- Additional statements or constraints can be added here
 
@@ -1291,6 +1311,7 @@ BEGIN
 
 END;
 GO
+
 /*
 Stored Procedure: [Project3].[LoadInstructors]
 
