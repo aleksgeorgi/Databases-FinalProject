@@ -102,7 +102,7 @@ CREATE TYPE [Udt].SemesterName FROM NVARCHAR(20)
 GO
 
 -- Edwin
-CREATE TYPE [Udt].[BuildingNameAbbrv] FROM NVARCHAR(2) NOT NULL;
+CREATE TYPE [Udt].[BuildingNameAbbrv] FROM NVARCHAR(3) NOT NULL;
 GO
 CREATE TYPE [Udt].[BuildingName] FROM NVARCHAR(50) NOT NULL;
 GO
@@ -615,7 +615,7 @@ BEGIN
         CASE 
             WHEN CHARINDEX(' ', @Location) > 0 
             THEN LEFT(@Location, CHARINDEX(' ', @Location) - 1)
-            ELSE @Location
+            ELSE 'TBD'
         END;
         
     RETURN @BuildingNameAbbrv;
@@ -662,6 +662,7 @@ BEGIN
             WHEN @BuildingNameAbbrv = 'SB' THEN 'Science Building'
             WHEN @BuildingNameAbbrv = 'SU' THEN 'Student Union'
             WHEN @BuildingNameAbbrv = 'C2' THEN 'Tech Incubator'
+            WHEN @BuildingNameAbbrv = 'TBD' THEN 'TBD'
         END;
 
     RETURN @BuildingName;
