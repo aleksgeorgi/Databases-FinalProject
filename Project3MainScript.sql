@@ -80,7 +80,7 @@ CREATE TYPE [Udt].[DateAdded] FROM [datetime2] NOT NULL
 GO
 CREATE TYPE [Udt].[DateOfLastUpdate] FROM [datetime2] NOT NULL
 GO
-CREATE TYPE [Udt].[SurrogateKeyInt] FROM [int] NULL
+CREATE TYPE [Udt].[SurrogateKeyInt] FROM [int] NOT NULL
 GO
 CREATE TYPE [Udt].[ClassTime] FROM nchar(19) NOT NULL
 GO
@@ -92,6 +92,8 @@ CREATE TYPE [Udt].[FirstName] FROM nvarchar(20) NOT NULL
 GO
 CREATE TYPE [Udt].[GroupName] FROM nvarchar(20) NOT NULL
 GO
+CREATE TYPE [Udt].[CreditHours] FROM [int] NOT NULL
+GO
 
 -- Ahnaf
 CREATE TYPE [Udt].[DayOfWeek] FROM CHAR(2) NULL
@@ -100,6 +102,10 @@ GO
 -- Sigi
 CREATE TYPE [Udt].SemesterName FROM NVARCHAR(20);
 GO
+
+-- Edwin
+-- add BuildingName UDT Create script here
+
 
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
 
@@ -248,34 +254,52 @@ CREATE TABLE [Personnel].[Instructor]
 ) ON [PRIMARY]
 GO
 
-/*
 
-Table: [Personnel].[Instructor]
+/*
+Table #3
+[Academic].[Course] Table
+CourseID (PK)
+CourseCode
+CourseName
+CourseCredit (Needs Check Constraint)
+CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
+CourseDescription
+FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
+
+UDT Suggestions
+CreditHours Type: If credit hours in your courses have certain constraints (like being a positive number, possibly with a maximum limit), a UDT can enforce these rules wherever credit hours are used in the database.
+
+
+
+Table: [Academic].[Course]
 
 -- =============================================
 -- Author:		Aleksandra Georgievska
--- Create date: 12/4/23
--- Description:	Load the names & IDs into the user Instructor table
--- =============================================
+-- Create date: 12/5/23
+-- Description:	Load the Course Codes, Names, Credit/Course nums into the Course table
+-- =============================================*/
 
-*/
-DROP TABLE IF EXISTS [Personnel].[Instructor]
+DROP TABLE IF EXISTS [Academic].[Course]
 GO
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE TABLE [Personnel].[Instructor]
+CREATE TABLE [Academic].[Course] 
 (
-    InstructorID [int] NOT NULL IDENTITY(1, 1), -- primary key
-    FirstName [char](25) NULL, 
-    LastName [char](25) NULL,
+    CourseId INT NOT NULL IDENTITY(1, 1), -- primary key
+    CourseCode INT NOT NULL, 
+    CourseName CHAR(5) NOT NULL, 
+    CourseCredit INT NOT NULL, -- (Needs Check Constraint to be positive)
+    CreditHours [Udt].[CreditHours] NOT NULL, -- CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
+    CourseDescription VARCHAR(35) NULL, -- CourseDescription
+    DepartmentID [int] NOT NULL, -- FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
     -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
     [DateAdded] [Udt].[DateAdded] NOT NULL,
     [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
     PRIMARY KEY CLUSTERED(
-	[InstructorID] ASC
+	[CourseId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
@@ -442,7 +466,16 @@ ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateAdded
 GO
 ALTER TABLE [Personnel].[Instructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
-
+ALTER TABLE [Personnel].[Instructor] ADD DEFAULT ('none') FOR [LastName]
+GO
+ALTER TABLE [Personnel].[Instructor] ADD DEFAULT ('none') FOR [FirstName]
+GO
+ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+ALTER TABLE [Academic].[Course] ADD DEFAULT ('unknown') FOR [CourseDescription]
+GO
 
 -- Ahnaf
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -476,6 +509,20 @@ ALTER TABLE [Process].[WorkflowSteps]  WITH CHECK ADD  CONSTRAINT [FK_WorkFlowSt
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Process].[WorkflowSteps] CHECK CONSTRAINT [FK_WorkFlowSteps_UserAuthorization]
+GO
+ALTER TABLE [Personnel].[Instructor] WITH CHECK ADD  CONSTRAINT [FK_Instructor_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Personnel].[Instructor] CHECK CONSTRAINT [FK_Instructor_UserAuthorization]
+GO
+ALTER TABLE [Academic].[Course] CHECK CONSTRAINT [FK_Course_UserAuthorization]
+GO
+ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CreditHours_Positive] CHECK (CreditHours >= 0)
+GO
+ALTER TABLE [Academic].[Course] ADD CONSTRAINT [CHK_CourseCredit_Positive] CHECK (CourseCredit >= 0)
+GO
+ALTER TABLE [Academic].[Course] WITH CHECK ADD CONSTRAINT [FK_Course_DepartmentID] FOREIGN KEY([DepartmentID])
+REFERENCES [Academic].[Department] ([DepartmentID])
 GO
 
 --Sigi
@@ -838,7 +885,6 @@ Stored Procedure: [Project3].[LoadInstructors]
 -- =============================================
 
 */
-
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -854,8 +900,9 @@ BEGIN
         FirstName, LastName, UserAuthorizationKey, DateAdded
     )
     SELECT DISTINCT
-        LTRIM(RTRIM(SUBSTRING(Instructor, CHARINDEX(',', Instructor) + 2, LEN(Instructor)))) AS FirstName,
-        LTRIM(RTRIM(SUBSTRING(Instructor, 1, CHARINDEX(',', Instructor) - 1))) AS LastName,
+        -- use COALESCE/NULLIF to check when importing the data from the original table to prevent importing nulls 
+        COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(Instructor, CHARINDEX(',', Instructor) + 2, LEN(Instructor)))), ''), 'none') AS FirstName,
+        COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(Instructor, 1, CHARINDEX(',', Instructor) - 1))), ''), 'none') AS LastName,
         @UserAuthorizationKey, 
         @DateAdded
     FROM
@@ -863,7 +910,10 @@ BEGIN
     ORDER BY LastName;
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Personnel].[Instructor]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
@@ -874,6 +924,82 @@ BEGIN
                                        @UserAuthorizationKey;
 END;
 GO
+
+
+-- CREATE TABLE [Academic].[Course] 
+-- (
+--     CourseId INT NOT NULL IDENTITY(1, 1), -- primary key
+--     CourseCode INT NOT NULL, 
+--     CourseName CHAR(5) NOT NULL, 
+--     CourseCredit INT NOT NULL, -- (Needs Check Constraint to be positive)
+--     CreditHours [Udt].[CreditHours] NOT NULL, -- CreditHours (Needs Check Constraint) -> should be positive, possibly a UDT
+--     CourseDescription VARCHAR(35) NULL, -- CourseDescription
+--     DepartmentID [int] NOT NULL, -- FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
+--     -- all tables must have the following 3 columns:
+--     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+--     [DateAdded] [Udt].[DateAdded] NOT NULL,
+--     [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+--     PRIMARY KEY CLUSTERED(
+-- 	[CourseId] ASC
+-- )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+-- ) ON [PRIMARY]
+-- GO
+
+/*
+Stored Procedure: [Project3].[LoadCourse]
+
+-- =============================================
+-- Author:		Aleksandra Georgievska
+-- Create date: 12/4/23
+-- Description:	Adds the Courses to the Course Table
+-- =============================================
+
+*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadCourse] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Academic].[Course](
+        [CourseCode]
+        ,[CourseName]
+        ,[CourseCredit]
+        ,[CreditHours]
+        ,[CourseDescription]
+        ,[DepartmentID], 
+        UserAuthorizationKey, 
+        DateAdded
+    )
+    SELECT DISTINCT
+
+        -- add parsing code here for getting code data from source table 
+        @UserAuthorizationKey, 
+        @DateAdded
+    FROM
+    [Uploadfile].[CurrentSemesterCourseOfferings];
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Academic].[Course]
+                                    );
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
 
 /*
 Stored Procedure: Project2.[TruncateClassScheduleData]
@@ -1304,6 +1430,7 @@ BEGIN
     -- Aleks
     EXEC [Project3].[Load_UserAuthorization] @UserAuthorizationKey = 1
     EXEC [Project3].[LoadInstructors] @UserAuthorizationKey = 1
+    EXEC [Project3].[LoadCourse] @UserAuthorizationKey = 1
 
     -- Aryeh
     EXEC [Project3].[LoadDepartments] @UserAuthorizationKey = 6	
