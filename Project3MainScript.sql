@@ -611,7 +611,12 @@ RETURNS [Udt].[BuildingNameAbbrv]
 AS
 BEGIN
     DECLARE @BuildingNameAbbrv [Udt].[BuildingNameAbbrv];
-    SET @BuildingNameAbbrv = LEFT(@Location , CHARINDEX(' ', @Location) - 1);
+    SET @BuildingNameAbbrv = 
+        CASE 
+            WHEN CHARINDEX(' ', @Location) > 0 
+            THEN LEFT(@Location, CHARINDEX(' ', @Location) - 1)
+            ELSE @Location
+        END;
         
     RETURN @BuildingNameAbbrv;
 END;
