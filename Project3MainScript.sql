@@ -1,16 +1,18 @@
 --------------------------------------- CREATE THE DATABASE ------------------------------------------
 -- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
+-- USE master
 -- CREATE DATABASE [ClassSchedule_9:15_Group1];
 -- GO
 
 -- USE master
--- DROP DATABASE IF EXISTS [ClassSchedule_9:15_Group1]
+-- DROP DATABASE [ClassSchedule_9:15_Group1]
 -- GO
 
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
 
+USE [ClassSchedule_9:15_Group1]
 
 DROP SCHEMA IF EXISTS [Academic]; 
 GO
@@ -509,13 +511,16 @@ CREATE TABLE [Facilities].[BuildingLocations]
 ) ON [PRIMARY]
 GO
 
+/*
 
 Table: [ClassManagement].[Class]
+
 -- =============================================
 -- Author:		Edwin Wray
 -- Create date: 12/7/23
 -- Description:	Create Class table
 -- =============================================
+
 */
 DROP TABLE IF EXISTS [ClassManagement].[Class]
 GO
@@ -641,7 +646,6 @@ ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
-
 ALTER TABLE [Academic].[Section] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [Academic].[Section] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
@@ -665,6 +669,8 @@ GO
 ALTER TABLE [ClassManagement].[Class] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [ClassManagement].[Class] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
 GO
 
 -- add check constraints in the following format: 
@@ -700,11 +706,9 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Enrollment].[Semester] CHECK CONSTRAINT [FK_Semester_UserAuthorization]
 GO
-
 ALTER TABLE [Academic].[Section] WITH CHECK ADD CONSTRAINT [FK_Section_Course] FOREIGN KEY([CourseId])
 REFERENCES [Academic].[Course] ([CourseId])
 GO
-
 ALTER TABLE [Academic].[Section]  WITH CHECK ADD  CONSTRAINT [FK_Section_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
@@ -792,11 +796,10 @@ GO
 ALTER TABLE [ClassManagement].[Class] CHECK CONSTRAINT [FK_Class_ModeOfInstruction]
 GO
 
-------------------------------- CREATE TABLE VALUED FUNCTIONS ----------------------------
+--------------------------------- CREATE FUNCTIONS --------------------------------
 
 
 -- Sigi 
--- Not table valued functions but still functions
 -- Create a function to determine the season
 CREATE FUNCTION [Udt].GetSeason(@DateAdded DATETIME2)
 RETURNS NVARCHAR(10)
@@ -1167,6 +1170,7 @@ BEGIN
     ADD CONSTRAINT FK_Class_ModeOfInstruction
         FOREIGN KEY (ModeID)
         REFERENCES [ClassManagement].[ModeOfInstruction] (ModeID);
+
     -- add more here...
 
 
@@ -1754,7 +1758,7 @@ BEGIN
                                                 ModeName, 
                                                 UserAuthorizationKey, 
                                                 DateAdded)
-    SELECT  Q.[Mode of Instruction], 
+    SELECT DISTINCT Q.[Mode of Instruction], 
             @UserAuthorizationKey, 
             @DateAdded
     FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
@@ -1960,6 +1964,74 @@ BEGIN
 END;
 GO
 
+ 
+/*
+Stored Procedure: [Project3].[LoadClass]
+
+-- =============================================
+-- Author:		Edwin Wray
+-- Create date: 12/5/23
+-- Description:	Adds Classes to the Class Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadClass] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [ClassManagement].[Class] (
+        CourseID, SectionID, InstructorID, RoomID, ModeID, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT C.CourseID, S.SectionID, I.InstructorID, R.RoomID, M.ModeID, @UserAuthorizationKey, @DateAdded
+        FROM [Academic].[Course] AS C
+            CROSS JOIN [Academic].[Section] AS S
+            CROSS JOIN [Personnel].[Instructor] AS I
+            CROSS JOIN [Facilities].[RoomLocation] AS R
+            CROSS JOIN [ClassManagement].[ModeOfInstruction] AS M
+            INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
+                ON LEFT(U.[Course (hr, crd)], PATINDEX('%[ (]%', U.[Course (hr, crd)]) - 1) = C.CourseAbbreviation -- CourseAbbreviation
+                AND U.Code = S.Code
+                AND SUBSTRING(
+                        U.[Course (hr, crd)], 
+                        PATINDEX('%[0-9]%', U.[Course (hr, crd)]), 
+                        CHARINDEX('(', U.[Course (hr, crd)]) - PATINDEX('%[0-9]%', U.[Course (hr, crd)])) = C.CourseNumber -- CourseNumber
+                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName
+                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName
+                AND CASE
+                        -- add the edge cases and then manually set it correctly
+                        WHEN RIGHT(U.Location, 4) = 'H 17' THEN '17'
+                        WHEN RIGHT(U.Location, 4) = '135H' THEN 'A135H'
+                        WHEN RIGHT(U.Location, 4) = '135B' THEN 'A135B'
+                        WHEN RIGHT(U.Location, 4) = 'H 09' THEN '09'
+                        WHEN RIGHT(U.Location, 4) = 'H 12' THEN '12'
+
+                        -- checks for null and empty string, if so set default string named TBD
+                        WHEN U.Location IS NULL OR LTRIM(RTRIM(U.Location)) = '' THEN 'TBD'
+                        ELSE RIGHT(U.Location, 4)
+                    END = R.RoomNumber
+                AND U.[Mode of Instruction] = M.ModeName
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Class Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
 
 /*
 Stored Procedure: [Project3].[LoadClass]
@@ -2152,17 +2224,16 @@ BEGIN
 
 
     -- TIER 3 TABLE LOADS
+     -- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4	
 
-    -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
-
-    --Sigi
+	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
 
+    -- Ahnaf
 
 
 
-        -- add more here... 
 
     --	Check row count before truncation
     EXEC [Project3].[ShowTableStatusRowCount] @UserAuthorizationKey = 6,  -- Change to the appropriate UserAuthorizationKey
@@ -2176,7 +2247,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
-EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+-- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 --EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
