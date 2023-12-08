@@ -2153,11 +2153,13 @@ BEGIN
 
     -- TIER 3 TABLE LOADS
 
+    -- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
+
     --Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
 
-    -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
+
 
 
         -- add more here... 
@@ -2174,7 +2176,7 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
 --EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
