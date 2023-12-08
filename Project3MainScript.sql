@@ -1,12 +1,12 @@
 --------------------------------------- CREATE THE DATABASE ------------------------------------------
 -- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
---CREATE DATABASE [ClassSchedule_9:15_Group1];
---GO
+-- CREATE DATABASE [ClassSchedule_9:15_Group1];
+-- GO
 
 -- USE master
---DROP DATABASE [ClassSchedule_9:15_Group1]
---GO
+-- DROP DATABASE IF EXISTS [ClassSchedule_9:15_Group1]
+-- GO
 
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
@@ -509,6 +509,39 @@ CREATE TABLE [Facilities].[BuildingLocations]
 ) ON [PRIMARY]
 GO
 
+
+
+/*
+Table: [Academic].[Section]
+
+-- =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/7/2023
+-- Description:	Load the Section Codes into the Section table
+-- =============================================*/
+
+DROP TABLE IF EXISTS [Academic].[Section]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Academic].[Section] 
+(
+    SectionID INT NOT NULL IDENTITY(1, 1), -- primary key
+    Section varchar(20) NOT NULL, 
+    Code varchar(20) NOT NULL,
+    CourseID [int] NOT NULL, -- FOREIGN KEY (CourseID) 
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[SectionId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
 
 
@@ -552,7 +585,7 @@ GO
 ALTER TABLE [Academic].[Course] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 ALTER TABLE [Academic].[Course] ADD DEFAULT ('unknown') FOR [CourseName]
-
+GO
 
 -- Ahnaf
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -575,6 +608,11 @@ GO
 ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [Enrollment].[Semester] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+
+ALTER TABLE [Academic].[Section] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Academic].[Section] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
 -- Aryeh
@@ -626,6 +664,16 @@ ALTER TABLE [Enrollment].[Semester]  WITH CHECK ADD  CONSTRAINT [FK_Semester_Use
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Enrollment].[Semester] CHECK CONSTRAINT [FK_Semester_UserAuthorization]
+GO
+
+ALTER TABLE [Academic].[Section] WITH CHECK ADD CONSTRAINT [FK_Section_Course] FOREIGN KEY([CourseId])
+REFERENCES [Academic].[Course] ([CourseId])
+GO
+
+ALTER TABLE [Academic].[Section]  WITH CHECK ADD  CONSTRAINT [FK_Section_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Academic].[Section] CHECK CONSTRAINT [FK_Section_UserAuthorization]
 GO
 
 -- Ahnaf
@@ -999,6 +1047,15 @@ BEGIN
         FOREIGN KEY([UserAuthorizationKey])
         REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
+    ALTER TABLE [Academic].[Section]
+        ADD CONSTRAINT FK_Section_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+    ALTER TABLE [Academic].[Section]
+    ADD CONSTRAINT FK_Section_Course
+        FOREIGN KEY (CourseID)
+        REFERENCES [Academic].[Course] (CourseID)
+
     -- Ahnaf 
     ALTER TABLE [ClassManagement].[Days]
     ADD CONSTRAINT FK_Days_UserAuthorization
@@ -1083,6 +1140,9 @@ BEGIN
 
     -- Sigi
     ALTER TABLE [Enrollment].[Semester] DROP CONSTRAINT FK_Semester_UserAuthorization;
+
+    ALTER TABLE [Academic].[Section] DROP CONSTRAINT [FK_Section_UserAuthorization];
+    ALTER TABLE [Academic].[Section] DROP CONSTRAINT [FK_Section_Course];
 
     -- Aryeh
     ALTER TABLE [Academic].[Department] DROP CONSTRAINT FK_Department_UserAuthorization;
@@ -1277,6 +1337,7 @@ BEGIN
 
     -- Sigi
     TRUNCATE TABLE [Enrollment].[Semester]
+    TRUNCATE TABLE [Academic].[Section]
 
     -- Edwin
     TRUNCATE TABLE [Facilities].[BuildingLocations]
@@ -1372,6 +1433,11 @@ BEGIN
             TableName = '[Enrollment].[Semester]',
             [Row Count] = COUNT(*)
         FROM [Enrollment].[Semester]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Academic].[Section]',
+            [Row Count] = COUNT(*)
+        FROM [Academic].[Section]
     -- Aryeh
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1441,6 +1507,71 @@ BEGIN
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Semester Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
+/*
+Stored Procedure: [Project3].[LoadSections]
+
+-- =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/4/23
+-- Description:	Loads in the Section Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadSections] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Academic].[Section] (Section, Code, CourseID, UserAuthorizationKey, DateAdded)
+    SELECT
+        Upload.Sec,
+        Upload.Code,
+        (
+            SELECT TOP 1 C.CourseId
+            FROM [Academic].[Course] AS C
+            WHERE 
+                C.CourseAbbreviation = LEFT(Upload.[Course (hr, crd)], PATINDEX('%[ (]%', Upload.[Course (hr, crd)]) - 1) AND 
+                C.CourseNumber = SUBSTRING(
+                    Upload.[Course (hr, crd)], 
+                    PATINDEX('%[0-9]%', Upload.[Course (hr, crd)]), 
+                    CHARINDEX('(', Upload.[Course (hr, crd)]) - PATINDEX('%[0-9]%', Upload.[Course (hr, crd)])
+                )
+        ) AS CourseID,
+        @UserAuthorizationKey,
+        @DateAdded
+    FROM
+        [Uploadfile].[CurrentSemesterCourseOfferings] AS Upload;
+
+
+    -- INSERT INTO [Academic].[Section] (SectionCode, UserAuthorizationKey, DateAdded)
+    -- SELECT
+    -- Upload.Sec, @UserAuthorizationKey, @DateAdded
+    -- FROM [Uploadfile].[CurrentSemesterCourseOfferings] AS Upload;
+
+    -- INSERT INTO [Academic].[Section] (CourseID)
+    -- SELECT CourseId
+    --  FROM [Academic].[Course] AS C
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add Section Data',
                                        @WorkFlowStepTableRowCount,
                                        @StartingDateTime,
                                        @EndingDateTime,
@@ -1859,6 +1990,9 @@ BEGIN
     -- Nicholas
     EXEC [Project3].[LoadRoomLocation]  @UserAuthorizationKey = 3
 
+    --Sigi
+    EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
+
     -- add more here... 
 
 
@@ -1874,10 +2008,10 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
--- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+--EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 -- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
