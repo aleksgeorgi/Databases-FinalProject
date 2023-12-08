@@ -12,7 +12,8 @@
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
 
-USE [ClassSchedule_9:15_Group1]
+USE [ClassSchedule_9:15_Group1];
+GO
 
 DROP SCHEMA IF EXISTS [Academic]; 
 GO
@@ -579,6 +580,47 @@ CREATE TABLE [Academic].[Section]
 ) ON [PRIMARY]
 GO
 
+
+/*
+
+Table: [Enrollment].[EnrollmentDetail]
+
+-- =============================================
+-- Author:		Ahnaf Ahmed
+-- Create date: 12/8/23
+-- Description:	Create table to store enrollment details for each section
+-- =============================================
+
+*/
+DROP TABLE IF EXISTS [Enrollment].[EnrollmentDetail]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [Enrollment].[EnrollmentDetail]
+(
+    [EnrollmentID] INT NOT NULL IDENTITY(1, 1), -- primary key
+	[SectionID] INT NOT NULL, -- Foreign Key (SectionID)
+    [CurrentEnrollment] INT NOT NULL,
+    [MaxEnrollmentLimit] INT NOT NULL,
+	[OverEnrolled] NCHAR(3),
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[EnrollmentID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
+
+
+
+
+
 --------------------- Alter Tables To Update Defaults/Constraints -------------------
 
 
@@ -628,6 +670,10 @@ GO
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
 GO
 ALTER TABLE [ClassManagement].[Days] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
+ALTER TABLE [Enrollment].[EnrollmentDetail] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [Enrollment].[EnrollmentDetail] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
 -- Nicholas
@@ -724,6 +770,21 @@ GO
 ALTER TABLE [ClassManagement].[Days] ADD CONSTRAINT CHK_DayOfWeek
 CHECK (DayAbbreviation IN ('M', 'T', 'W', 'TH', 'F', 'S', 'SU'))
 GO
+
+
+ALTER TABLE [Enrollment].[EnrollmentDetail]  WITH CHECK ADD  CONSTRAINT [FK_EnrollmentDetail_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [Enrollment].[EnrollmentDetail] CHECK CONSTRAINT [FK_EnrollmentDetail_UserAuthorization]
+GO
+ALTER TABLE [Enrollment].[EnrollmentDetail] WITH CHECK ADD CONSTRAINT [FK_EnrollmentDetail_Section] FOREIGN KEY([SectionID])
+REFERENCES [Academic].[Section] ([SectionID])
+GO
+ALTER TABLE [Enrollment].[EnrollmentDetail] CHECK CONSTRAINT [FK_EnrollmentDetail_Section]
+GO
+--ALTER TABLE [Enrollment].[EnrollmentDetail] ADD CONSTRAINT [CHK_CurrentEnrollment_MaxEnrollmentLimit] CHECK (CurrentEnrollment <= MaxEnrollmentLimit)
+--GO
+
 
 -- Nicholas
 ALTER TABLE [ClassManagement].[ModeOfInstruction]  WITH CHECK ADD  CONSTRAINT [FK_ModeOfInst_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -1129,6 +1190,16 @@ BEGIN
     ADD CONSTRAINT FK_Days_UserAuthorization
         FOREIGN KEY (UserAuthorizationKey)
         REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+		
+    ALTER TABLE [Enrollment].[EnrollmentDetail]
+    ADD CONSTRAINT FK_EnrollmentDetail_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+		
+    ALTER TABLE [Enrollment].[EnrollmentDetail]
+    ADD CONSTRAINT FK_EnrollmentDetail_Section
+        FOREIGN KEY (SectionID)
+        REFERENCES [Academic].[Section] ([SectionID]);
 
     -- Nicholas
     ALTER TABLE [ClassManagement].[ModeOfInstruction]  
@@ -1224,6 +1295,9 @@ BEGIN
 
     -- Ahnaf
     ALTER TABLE [ClassManagement].[Days] DROP CONSTRAINT [FK_Days_UserAuthorization];
+
+    ALTER TABLE [Enrollment].[EnrollmentDetail] DROP CONSTRAINT [FK_EnrollmentDetail_UserAuthorization];
+    ALTER TABLE [Enrollment].[EnrollmentDetail] DROP CONSTRAINT [FK_EnrollmentDetail_Section];
 
     -- Nicholas
     ALTER TABLE [ClassManagement].[ModeOfInstruction] DROP CONSTRAINT [FK_ModeOfInst_UserAuthorization];
@@ -1427,6 +1501,7 @@ BEGIN
 	
     -- Ahnaf
     TRUNCATE TABLE [ClassManagement].[Days]
+	TRUNCATE TABLE [Enrollment].[EnrollmentDetail]
 
     -- Sigi
     TRUNCATE TABLE [Enrollment].[Semester]
@@ -1515,6 +1590,11 @@ BEGIN
             TableName = '[ClassManagement].[Days]',
             [Row Count] = COUNT(*)
         FROM [ClassManagement].[Days]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[Enrollment].[EnrollmentDetail]',
+            [Row Count] = COUNT(*)
+        FROM [Enrollment].[EnrollmentDetail]
     -- Nicholas 
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1679,7 +1759,7 @@ BEGIN
 END;
 GO
 
--- Ahnaf
+
 /*
 Stored Procedure: [Project3].[LoadDays]
 
@@ -1719,7 +1799,7 @@ BEGIN
     SET @WorkFlowStepTableRowCount = 7;
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
-    EXEC [Process].[usp_TrackWorkFlow] 'Add Instructor Data',
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: [Project3].[LoadDays] loads DayAbbreviation into the [Days] table',
                                        @WorkFlowStepTableRowCount,
                                        @StartingDateTime,
                                        @EndingDateTime,
@@ -1727,6 +1807,64 @@ BEGIN
                                        @UserAuthorizationKey;
 END;
 GO
+
+/*
+Stored Procedure: [Project3].[LoadEnrollmentDetail]
+
+-- =============================================
+-- Author:		Ahnaf Ahmed
+-- Create date: 12/8/23
+-- Description:	Loads in the EnrollmentDetail Table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [Enrollment].[EnrollmentDetail]
+	(SectionID,
+		CurrentEnrollment,
+		MaxEnrollmentLimit,
+		OverEnrolled,
+		UserAuthorizationKey,
+		DateAdded)
+    SELECT DISTINCT
+        S.SectionID,
+		CAST(Upload.Enrolled AS INT),
+		CAST(Upload.Limit AS INT),
+		CASE
+			WHEN CAST(Upload.Enrolled AS INT) <= CAST(Upload.Limit AS INT) THEN 'No'
+			ELSE 'Yes'
+		END,
+        @UserAuthorizationKey,
+        @DateAdded
+    FROM
+        [Uploadfile].[CurrentSemesterCourseOfferings] AS Upload
+		INNER JOIN [Academic].[Section] AS S
+		ON Upload.Code = S.Code
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: [Project3].[LoadEnrollmentDetail] loads [EnrollmentDetail] table',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
 
 -- =============================================
 -- Author:		Nicholas Kong
@@ -2230,7 +2368,8 @@ BEGIN
 	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
 
-    -- Ahnaf
+	-- Ahnaf
+	EXEC [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey = 5
 
 
 
