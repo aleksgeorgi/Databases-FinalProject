@@ -1757,7 +1757,7 @@ BEGIN
                                                 ModeName, 
                                                 UserAuthorizationKey, 
                                                 DateAdded)
-    SELECT  Q.[Mode of Instruction], 
+    SELECT DISTINCT Q.[Mode of Instruction], 
             @UserAuthorizationKey, 
             @DateAdded
     FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
@@ -2157,11 +2157,13 @@ BEGIN
 
 
     -- TIER 3 TABLE LOADS
-    --Sigi
+     -- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4	
+
+	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
     
-    -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4	
+   
 
     -- Ahnaf
 
