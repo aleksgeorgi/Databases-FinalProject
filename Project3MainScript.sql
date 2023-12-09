@@ -1319,6 +1319,11 @@ BEGIN
     -- Edwin
     ALTER TABLE [Facilities].[BuildingLocations] DROP CONSTRAINT FK_BuildingLocations_UserAuthorization;
     ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_UserAuthorization;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Course;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Section;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Instructor;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_RoomLocation;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_ModeOfInstruction;
 
     -- add more here...
 
@@ -1717,7 +1722,7 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
 
     INSERT INTO [Academic].[Section] (Section, Code, CourseID, UserAuthorizationKey, DateAdded)
-    SELECT
+    SELECT DISTINCT
         Upload.Sec,
         Upload.Code,
         (
@@ -2294,12 +2299,13 @@ BEGIN
     EXEC [Project3].[LoadRoomLocation]  @UserAuthorizationKey = 3
 
 
-    -- TIER 3 TABLE LOADS
-     -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4	
+    -- TIER 3 TABLE LOADS	
 
 	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
+
+    -- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
 
 	-- Ahnaf
 	EXEC [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey = 5
@@ -2322,7 +2328,7 @@ GO
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
---EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+-- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 -- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
