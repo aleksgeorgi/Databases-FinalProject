@@ -1319,6 +1319,11 @@ BEGIN
     -- Edwin
     ALTER TABLE [Facilities].[BuildingLocations] DROP CONSTRAINT FK_BuildingLocations_UserAuthorization;
     ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_UserAuthorization;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Course;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Section;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_Instructor;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_RoomLocation;
+    ALTER TABLE [ClassManagement].[Class] DROP CONSTRAINT FK_Class_ModeOfInstruction;
 
     -- add more here...
 
@@ -1717,7 +1722,7 @@ BEGIN
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
 
     INSERT INTO [Academic].[Section] (Section, Code, CourseID, UserAuthorizationKey, DateAdded)
-    SELECT
+    SELECT DISTINCT
         Upload.Sec,
         Upload.Code,
         (
@@ -2134,16 +2139,15 @@ BEGIN
             CROSS JOIN [Personnel].[Instructor] AS I
             CROSS JOIN [Facilities].[RoomLocation] AS R
             CROSS JOIN [ClassManagement].[ModeOfInstruction] AS M
-            INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
+            INNER JOIN [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] AS U
                 ON LEFT(U.[Course (hr, crd)], PATINDEX('%[ (]%', U.[Course (hr, crd)]) - 1) = C.CourseAbbreviation -- CourseAbbreviation
-                AND U.Code = S.Code
-                AND SUBSTRING(
-                        U.[Course (hr, crd)], 
-                        PATINDEX('%[0-9]%', U.[Course (hr, crd)]), 
-                        CHARINDEX('(', U.[Course (hr, crd)]) - PATINDEX('%[0-9]%', U.[Course (hr, crd)])) = C.CourseNumber -- CourseNumber
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName
-                AND CASE
+                AND SUBSTRING(U.[Course (hr, crd)], PATINDEX('%[0-9]%', U.[Course (hr, crd)]), 
+                        CHARINDEX('(', U.[Course (hr, crd)]) - PATINDEX('%[0-9]%', U.[Course (hr, crd)])) = C.CourseNumber-- CourseNumber
+                AND UPPER(LTRIM(RTRIM(U.[Code]))) = UPPER(LTRIM(RTRIM(S.Code))) -- Section Code
+                AND UPPER(LTRIM(RTRIM(U.[Sec]))) = UPPER(LTRIM(RTRIM(S.Section))) -- Section Number
+                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName -- Instr FirstName
+                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName -- Instr LastName
+                AND CASE -- RoomNumber
                         -- add the edge cases and then manually set it correctly
                         WHEN RIGHT(U.Location, 4) = 'H 17' THEN '17'
                         WHEN RIGHT(U.Location, 4) = '135H' THEN 'A135H'
@@ -2155,73 +2159,7 @@ BEGIN
                         WHEN U.Location IS NULL OR LTRIM(RTRIM(U.Location)) = '' THEN 'TBD'
                         ELSE RIGHT(U.Location, 4)
                     END = R.RoomNumber
-                AND U.[Mode of Instruction] = M.ModeName
-
-    DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
-    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
-    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
-    EXEC [Process].[usp_TrackWorkFlow] 'Add Class Data',
-                                       @WorkFlowStepTableRowCount,
-                                       @StartingDateTime,
-                                       @EndingDateTime,
-                                       @QueryTime,
-                                       @UserAuthorizationKey;
-END;
-GO
-
-
-/*
-Stored Procedure: [Project3].[LoadClass]
--- =============================================
--- Author:		Edwin Wray
--- Create date: 12/5/23
--- Description:	Adds Classes to the Class Table
--- =============================================
-*/
-
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE OR ALTER PROCEDURE [Project3].[LoadClass] @UserAuthorizationKey INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
-    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-
-    INSERT INTO [ClassManagement].[Class] (
-        CourseID, SectionID, InstructorID, RoomID, ModeID, UserAuthorizationKey, DateAdded
-    )
-    SELECT DISTINCT C.CourseID, S.SectionID, I.InstructorID, R.RoomID, M.ModeID, @UserAuthorizationKey, @DateAdded
-        FROM [Academic].[Course] AS C
-            CROSS JOIN [Academic].[Section] AS S
-            CROSS JOIN [Personnel].[Instructor] AS I
-            CROSS JOIN [Facilities].[RoomLocation] AS R
-            CROSS JOIN [ClassManagement].[ModeOfInstruction] AS M
-            INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
-                ON LEFT(U.[Course (hr, crd)], PATINDEX('%[ (]%', U.[Course (hr, crd)]) - 1) = C.CourseAbbreviation -- CourseAbbreviation
-                AND U.Code = S.Code
-                AND SUBSTRING(
-                        U.[Course (hr, crd)], 
-                        PATINDEX('%[0-9]%', U.[Course (hr, crd)]), 
-                        CHARINDEX('(', U.[Course (hr, crd)]) - PATINDEX('%[0-9]%', U.[Course (hr, crd)])) = C.CourseNumber -- CourseNumber
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName
-                AND CASE
-                        -- add the edge cases and then manually set it correctly
-                        WHEN RIGHT(U.Location, 4) = 'H 17' THEN '17'
-                        WHEN RIGHT(U.Location, 4) = '135H' THEN 'A135H'
-                        WHEN RIGHT(U.Location, 4) = '135B' THEN 'A135B'
-                        WHEN RIGHT(U.Location, 4) = 'H 09' THEN '09'
-                        WHEN RIGHT(U.Location, 4) = 'H 12' THEN '12'
-
-                        -- checks for null and empty string, if so set default string named TBD
-                        WHEN U.Location IS NULL OR LTRIM(RTRIM(U.Location)) = '' THEN 'TBD'
-                        ELSE RIGHT(U.Location, 4)
-                    END = R.RoomNumber
-                AND U.[Mode of Instruction] = M.ModeName
+                AND UPPER(LTRIM(RTRIM(U.[Mode of Instruction]))) = UPPER(LTRIM(RTRIM(M.ModeName))) -- MoI Name (ex. Hybrid)
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = 0;
@@ -2361,12 +2299,13 @@ BEGIN
     EXEC [Project3].[LoadRoomLocation]  @UserAuthorizationKey = 3
 
 
-    -- TIER 3 TABLE LOADS
-     -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4	
+    -- TIER 3 TABLE LOADS	
 
 	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
+
+    -- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
 
 	-- Ahnaf
 	EXEC [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey = 5
@@ -2389,7 +2328,7 @@ GO
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
---EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+-- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
 -- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 -- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
