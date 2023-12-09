@@ -1,13 +1,13 @@
 --------------------------------------- CREATE THE DATABASE ------------------------------------------
 -- Step 1 Instructions: run only lines 4 and 5 using the master databse 
 
--- USE master
--- CREATE DATABASE [ClassSchedule_9:15_Group1];
--- GO
+--USE master
+--CREATE DATABASE [ClassSchedule_9:15_Group1];
+--GO
 
--- USE master
--- DROP DATABASE [ClassSchedule_9:15_Group1]
--- GO
+--USE master
+--DROP DATABASE [ClassSchedule_9:15_Group1]
+--GO
 
 --------------------------------------- CREATE SCHEMAS ------------------------------------------
 -- Step 2 Instructions: Run all remaining code under the [ClassSchedule_9:15_Group1] database
@@ -113,13 +113,7 @@ GO
 CREATE TYPE [Udt].[BuildingName] FROM NVARCHAR(50) NOT NULL;
 GO
 
--- Nicholas 
-CREATE TYPE [Udt].[TimeSlot] AS TABLE
-(
-    StartTime TIME NOT NULL,
-    EndTime TIME NOT NULL
-);
-GO
+
 
 
 ------------------------------------------ Import the UploadFile Data ---------------------------------------
@@ -377,7 +371,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 CREATE TABLE [Facilities].[RoomLocation] (
     RoomID INT IDENTITY(1,1) NOT NULL,
-    RoomNumber VARCHAR(12) NULL,
+	RoomNumber VARCHAR(12) NULL,
     BuildingCode INT,  -- Assuming BuildingCode is INT; adjust the data type as needed
     -- FOREIGN KEY (BuildingCode) REFERENCES BuildingLocation(BuildingCode),
 	 -- all tables must have the following 3 columns:
@@ -399,8 +393,12 @@ SET QUOTED_IDENTIFIER ON
 GO
 CREATE TABLE  [ClassManagement].[Schedule] (
     ScheduleID INT IDENTITY(1,1) NOT NULL,
-    StartTimeRange [Udt].[TimeSlot] NOT NULL CHECK (StartTimeRange >= '00:00:00.0000000' AND StartTimeRange <= '24:00:00.0000000'),
-	EndTimeRange [Udt].[TimeSlot] NOT NULL CHECK (EndTimeRange >= '00:00:00.0000000' AND EndTimeRange <= '24:00:00.0000000'),
+	RoomID INT NOT NULL, 
+	SectionID INT NOT NULL,
+	ClassID INT NOT NULL,
+	SemesterID INT NOT NULL,
+    StartTimeRange [Udt].[ClassTime] NOT NULL CHECK (StartTimeRange >= '00:00:00.0000000' AND StartTimeRange <= '24:00:00.0000000'),
+	EndTimeRange [Udt].[ClassTime] NOT NULL CHECK (EndTimeRange >= '00:00:00.0000000' AND EndTimeRange <= '24:00:00.0000000'),
 	 -- all tables must have the following 3 columns:
     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
     [DateAdded] [Udt].[DateAdded] NOT NULL,
@@ -837,25 +835,15 @@ GO
 ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
 REFERENCES [Facilities].[RoomLocation] ([RoomID])
 GO
-ALTER TABLE [ClassManagement].[Schedule] CHECK CONSTRAINT [FK_Schedule_RoomLocation]
-GO
 ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Section] FOREIGN KEY([SectionID])
 REFERENCES [Academic].[Section] ([SectionID])
-GO
-ALTER TABLE [ClassManagement].[Schedule] CHECK CONSTRAINT [FK_Schedule_Section]
 GO
 ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Class] FOREIGN KEY([ClassID])
 REFERENCES [ClassManagement].[Class] ([ClassID])
 GO
-ALTER TABLE [ClassManagement].[Schedule] CHECK CONSTRAINT [FK_Schedule_Class]
-GO
 ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Semester] FOREIGN KEY([SemesterID])
 REFERENCES [Enrollment].[Semester] ([SemesterID])
 GO
-ALTER TABLE [ClassManagement].[Schedule] CHECK CONSTRAINT [FK_Schedule_Semester]
-GO
-
-
 
 -- Aryeh
 ALTER TABLE [Academic].[Department]  WITH CHECK ADD  CONSTRAINT [FK_Department_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -873,11 +861,11 @@ REFERENCES [Academic].[Department] ([DepartmentID])
 GO
 ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_Department]
 GO
-ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
-REFERENCES [Facilities].[RoomLocation] ([RoomID])
-GO
-ALTER TABLE [ClassManagement].[Schedule]  CHECK CONSTRAINT [FK_Schedule_RoomLocation]
-GO
+--ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
+--REFERENCES [Facilities].[RoomLocation] ([RoomID])
+--GO
+--ALTER TABLE [ClassManagement].[Schedule]  CHECK CONSTRAINT [FK_Schedule_RoomLocation]
+--GO
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations]  WITH CHECK ADD  CONSTRAINT [FK_BuildingLocations_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -1273,31 +1261,28 @@ BEGIN
 
 	ALTER TABLE  [ClassManagement].[Schedule]
     ADD CONSTRAINT FK_Schedule_UserAuthorization 
-        FOREIGN KEY([UserAuthorizationKey])
-        REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
+    FOREIGN KEY([UserAuthorizationKey])
+    REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
 	ALTER TABLE [ClassManagement].[Schedule]
     ADD CONSTRAINT FK_Schedule_RoomID
-        FOREIGN KEY (RoomID)
-        REFERENCES [Facilities].[RoomLocation] (RoomID);
+		FOREIGN KEY (RoomID)
+		REFERENCES [Facilities].[RoomLocation] (RoomID);
 
-	ALTER TABLE [ClassManagement].[Schedule]  
-	ADD CONSTRAINT FK_Schedule_Section
-		FOREIGN KEY([SectionID])
-		REFERENCES [Academic].[Section] ([SectionID]);
+	ALTER TABLE [ClassManagement].[Schedule]
+    ADD CONSTRAINT FK_Schedule_Section
+		FOREIGN KEY (SectionID)
+		REFERENCES [Academic].[Section] (SectionID);
+	
+	ALTER TABLE [ClassManagement].[Schedule]
+    ADD CONSTRAINT FK_Schedule_Class
+		FOREIGN KEY (ClassID)
+		REFERENCES [ClassManagement].[Class] (ClassID);
 
-	ALTER TABLE [ClassManagement].[Schedule]  
-	ADD CONSTRAINT FK_Schedule_Class 
-		FOREIGN KEY([ClassID])
-		REFERENCES [ClassManagement].[Class] ([ClassID]);
-
-	ALTER TABLE [ClassManagement].[Schedule]  
-	ADD CONSTRAINT FK_Schedule_Semester 
-		FOREIGN KEY([SemesterID])
-		REFERENCES [Enrollment].[Semester] ([SemesterID])
-
-
-
+	ALTER TABLE [ClassManagement].[Schedule]
+    ADD CONSTRAINT FK_Schedule_Semester
+		FOREIGN KEY (SemesterID)
+		REFERENCES [Enrollment].[Semester] (SemesterID);
 
 
     -- Edwin
@@ -1702,9 +1687,9 @@ BEGIN
             TableName = '[Facilities].[RoomLocation]',
             [Row Count] = COUNT(*)
         FROM [Facilities].[RoomLocation]
-	 UNION ALL
+	UNION ALL
         SELECT TableStatus = @TableStatus,
-            TableName = ' [ClassManagement].[Schedule]',
+            TableName = '[ClassManagement].[Schedule]',
             [Row Count] = COUNT(*)
         FROM [ClassManagement].[Schedule]
     -- Sigi
@@ -2076,17 +2061,17 @@ GO
 -- =============================================
 
 CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
-    -- Add parameters if needed
-    @UserAuthorizationKey INT
-AS
-BEGIN
+  --Add parameters if needed
+  @UserAuthorizationKey INT
+  AS
+  BEGIN
 
-    SET NOCOUNT ON;
+  SET NOCOUNT ON;
 
-    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
-    DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
-    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-    DECLARE @WorkFlowStepTableRowCount INT = 0;
+  DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+  DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
+  DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+  DECLARE @WorkFlowStepTableRowCount INT = 0;
 
 	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange,EndTimeRange)
 	SELECT
@@ -2440,12 +2425,11 @@ BEGIN
 
 
     -- TIER 3 TABLE LOADS	
+	-- Edwin
+    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
 
 	--Sigi
     EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
-
-    -- Edwin
-    EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
 
 	-- Ahnaf
 	EXEC [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey = 5
