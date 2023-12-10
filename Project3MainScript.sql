@@ -385,30 +385,30 @@ CREATE TABLE [Facilities].[RoomLocation] (
 ) ON [PRIMARY]
 GO
 
--- Nicholas
-DROP TABLE IF EXISTS  [ClassManagement].[Schedule]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE  [ClassManagement].[Schedule] (
-    ScheduleID INT IDENTITY(1,1) NOT NULL,
-	RoomID INT NULL, 
-	SectionID INT NULL,
-	ClassID INT NULL,
-	SemesterID INT NULL,
-    StartTimeRange [Udt].[ClassTime] NOT NULL CHECK (StartTimeRange >= '00:00:00.0000000' AND StartTimeRange <= '24:00:00.0000000'),
-	EndTimeRange [Udt].[ClassTime] NOT NULL CHECK (EndTimeRange >= '00:00:00.0000000' AND EndTimeRange <= '24:00:00.0000000'),
-	 -- all tables must have the following 3 columns:
-    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
-    [DateAdded] [Udt].[DateAdded] NOT NULL,
-    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
-    PRIMARY KEY CLUSTERED(
-	[ScheduleID] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
+-- -- Nicholas
+-- DROP TABLE IF EXISTS  [ClassManagement].[Schedule]
+-- GO
+-- SET ANSI_NULLS ON
+-- GO
+-- SET QUOTED_IDENTIFIER ON
+-- GO
+-- CREATE TABLE  [ClassManagement].[Schedule] (
+--     ScheduleID INT IDENTITY(1,1) NOT NULL,
+-- 	RoomID INT NULL, 
+-- 	SectionID INT NULL,
+-- 	ClassID INT NULL,
+-- 	SemesterID INT NULL,
+--     StartTimeRange [Udt].[ClassTime] NOT NULL CHECK (StartTimeRange >= '00:00:00.0000000' AND StartTimeRange <= '24:00:00.0000000'),
+-- 	EndTimeRange [Udt].[ClassTime] NOT NULL CHECK (EndTimeRange >= '00:00:00.0000000' AND EndTimeRange <= '24:00:00.0000000'),
+-- 	 -- all tables must have the following 3 columns:
+--     [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+--     [DateAdded] [Udt].[DateAdded] NOT NULL,
+--     [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+--     PRIMARY KEY CLUSTERED(
+-- 	[ScheduleID] ASC
+-- )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+-- ) ON [PRIMARY]
+-- GO
 
 
 
@@ -712,10 +712,10 @@ ALTER TABLE [Facilities].[RoomLocation] ADD  DEFAULT (sysdatetime()) FOR [DateAd
 GO
 ALTER TABLE [Facilities].[RoomLocation]  ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
-ALTER TABLE  [ClassManagement].[Schedule] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
-GO
-ALTER TABLE  [ClassManagement].[Schedule]  ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
-GO
+-- ALTER TABLE  [ClassManagement].[Schedule] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+-- GO
+-- ALTER TABLE  [ClassManagement].[Schedule]  ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+-- GO
 
 
 
@@ -750,7 +750,6 @@ GO
 ALTER TABLE [ClassManagement].[Class] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
 
-GO
 
 -- add check constraints in the following format: 
 
@@ -803,8 +802,6 @@ GO
 ALTER TABLE [ClassManagement].[Days] ADD CONSTRAINT CHK_DayOfWeek
 CHECK (DayAbbreviation IN ('M', 'T', 'W', 'TH', 'F', 'S', 'SU'))
 GO
-
-
 ALTER TABLE [Enrollment].[EnrollmentDetail]  WITH CHECK ADD  CONSTRAINT [FK_EnrollmentDetail_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
 REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
@@ -815,8 +812,7 @@ REFERENCES [Academic].[Section] ([SectionID])
 GO
 ALTER TABLE [Enrollment].[EnrollmentDetail] CHECK CONSTRAINT [FK_EnrollmentDetail_Section]
 GO
---ALTER TABLE [Enrollment].[EnrollmentDetail] ADD CONSTRAINT [CHK_CurrentEnrollment_MaxEnrollmentLimit] CHECK (CurrentEnrollment <= MaxEnrollmentLimit)
---GO
+
 
 
 -- Nicholas
@@ -830,23 +826,23 @@ REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
 GO
 ALTER TABLE [Facilities].[RoomLocation]  CHECK CONSTRAINT [FK_RoomLocation_UserAuthorization]
 GO
-ALTER TABLE  [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
-REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
-GO
-ALTER TABLE  [ClassManagement].[Schedule]  CHECK CONSTRAINT [FK_Schedule_UserAuthorization]
-GO
-ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
-REFERENCES [Facilities].[RoomLocation] ([RoomID])
-GO
-ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Section] FOREIGN KEY([SectionID])
-REFERENCES [Academic].[Section] ([SectionID])
-GO
-ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Class] FOREIGN KEY([ClassID])
-REFERENCES [ClassManagement].[Class] ([ClassID])
-GO
-ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Semester] FOREIGN KEY([SemesterID])
-REFERENCES [Enrollment].[Semester] ([SemesterID])
-GO
+-- ALTER TABLE  [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+-- REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+-- GO
+-- ALTER TABLE  [ClassManagement].[Schedule]  CHECK CONSTRAINT [FK_Schedule_UserAuthorization]
+-- GO
+-- ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
+-- REFERENCES [Facilities].[RoomLocation] ([RoomID])
+-- GO
+-- ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Section] FOREIGN KEY([SectionID])
+-- REFERENCES [Academic].[Section] ([SectionID])
+-- GO
+-- ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Class] FOREIGN KEY([ClassID])
+-- REFERENCES [ClassManagement].[Class] ([ClassID])
+-- GO
+-- ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_Semester] FOREIGN KEY([SemesterID])
+-- REFERENCES [Enrollment].[Semester] ([SemesterID])
+-- GO
 
 
 
@@ -867,11 +863,7 @@ REFERENCES [Academic].[Department] ([DepartmentID])
 GO
 ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_Department]
 GO
---ALTER TABLE [ClassManagement].[Schedule]  WITH CHECK ADD  CONSTRAINT [FK_Schedule_RoomLocation] FOREIGN KEY([RoomID])
---REFERENCES [Facilities].[RoomLocation] ([RoomID])
---GO
---ALTER TABLE [ClassManagement].[Schedule]  CHECK CONSTRAINT [FK_Schedule_RoomLocation]
---GO
+
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations]  WITH CHECK ADD  CONSTRAINT [FK_BuildingLocations_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -1265,30 +1257,30 @@ BEGIN
         FOREIGN KEY([UserAuthorizationKey])
         REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
-	ALTER TABLE  [ClassManagement].[Schedule]
-    ADD CONSTRAINT FK_Schedule_UserAuthorization 
-    FOREIGN KEY([UserAuthorizationKey])
-    REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
+	-- ALTER TABLE  [ClassManagement].[Schedule]
+    -- ADD CONSTRAINT FK_Schedule_UserAuthorization 
+    -- FOREIGN KEY([UserAuthorizationKey])
+    -- REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey]);
 
-	ALTER TABLE [ClassManagement].[Schedule]
-    ADD CONSTRAINT FK_Schedule_RoomID
-		FOREIGN KEY (RoomID)
-		REFERENCES [Facilities].[RoomLocation] (RoomID);
+	-- ALTER TABLE [ClassManagement].[Schedule]
+    -- ADD CONSTRAINT FK_Schedule_RoomID
+	-- 	FOREIGN KEY (RoomID)
+	-- 	REFERENCES [Facilities].[RoomLocation] (RoomID);
 
-	ALTER TABLE [ClassManagement].[Schedule]
-    ADD CONSTRAINT FK_Schedule_Section
-		FOREIGN KEY (SectionID)
-		REFERENCES [Academic].[Section] (SectionID);
+	-- ALTER TABLE [ClassManagement].[Schedule]
+    -- ADD CONSTRAINT FK_Schedule_Section
+	-- 	FOREIGN KEY (SectionID)
+	-- 	REFERENCES [Academic].[Section] (SectionID);
 	
-	ALTER TABLE [ClassManagement].[Schedule]
-    ADD CONSTRAINT FK_Schedule_Class
-		FOREIGN KEY (ClassID)
-		REFERENCES [ClassManagement].[Class] (ClassID);
+	-- ALTER TABLE [ClassManagement].[Schedule]
+    -- ADD CONSTRAINT FK_Schedule_Class
+	-- 	FOREIGN KEY (ClassID)
+	-- 	REFERENCES [ClassManagement].[Class] (ClassID);
 
-	ALTER TABLE [ClassManagement].[Schedule]
-    ADD CONSTRAINT FK_Schedule_Semester
-		FOREIGN KEY (SemesterID)
-		REFERENCES [Enrollment].[Semester] (SemesterID);
+	-- ALTER TABLE [ClassManagement].[Schedule]
+    -- ADD CONSTRAINT FK_Schedule_Semester
+	-- 	FOREIGN KEY (SemesterID)
+	-- 	REFERENCES [Enrollment].[Semester] (SemesterID);
 
 
     -- Edwin
@@ -1380,13 +1372,11 @@ BEGIN
 
     -- Nicholas
     ALTER TABLE [ClassManagement].[ModeOfInstruction] DROP CONSTRAINT [FK_ModeOfInst_UserAuthorization];
-	ALTER TABLE [Facilities].[RoomLocation] DROP CONSTRAINT [FK_RoomLocation_UserAuthorization];
-	ALTER TABLE [ClassManagement].[Schedule] DROP CONSTRAINT [FK_Schedule_UserAuthorization];
-
+    ALTER TABLE [Facilities].[RoomLocation] DROP CONSTRAINT [FK_RoomLocation_UserAuthorization];
+    -- add nicholas' drop foreign keys for schedule here 
 
     -- Sigi
     ALTER TABLE [Enrollment].[Semester] DROP CONSTRAINT FK_Semester_UserAuthorization;
-
     ALTER TABLE [Academic].[Section] DROP CONSTRAINT [FK_Section_UserAuthorization];
     ALTER TABLE [Academic].[Section] DROP CONSTRAINT [FK_Section_Course];
 
@@ -1585,9 +1575,8 @@ BEGIN
 	-- Nicholas
 	TRUNCATE TABLE [Project3].[LoadModeOfInstruction]
 	TRUNCATE TABLE [Project3].[LoadRoomLocation]
-	TRUNCATE TABLE [ClassManagement].[Schedule]
+	-- TRUNCATE TABLE [ClassManagement].[Schedule]
 
-	
     -- Ahnaf
     TRUNCATE TABLE [ClassManagement].[Days]
 	TRUNCATE TABLE [Enrollment].[EnrollmentDetail]
@@ -1695,11 +1684,11 @@ BEGIN
             TableName = '[Facilities].[RoomLocation]',
             [Row Count] = COUNT(*)
         FROM [Facilities].[RoomLocation]
-	UNION ALL
-        SELECT TableStatus = @TableStatus,
-            TableName = '[ClassManagement].[Schedule]',
-            [Row Count] = COUNT(*)
-        FROM [ClassManagement].[Schedule]
+	-- UNION ALL
+    --     SELECT TableStatus = @TableStatus,
+    --         TableName = '[ClassManagement].[Schedule]',
+    --         [Row Count] = COUNT(*)
+    --     FROM [ClassManagement].[Schedule]
     -- Sigi
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -1733,6 +1722,7 @@ BEGIN
             TableName = '[ClassManagement].[Class]',
             [Row Count] = COUNT(*)
         FROM [ClassManagement].[Class]
+
 
     -- add more here... 
     ;
@@ -2068,40 +2058,40 @@ GO
 -- Description:	Populate a table to show the Schedule
 -- =============================================
 
-CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
-  --Add parameters if needed
-  @UserAuthorizationKey INT
-  AS
-  BEGIN
+-- CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
+--   --Add parameters if needed
+--   @UserAuthorizationKey INT
+--   AS
+--   BEGIN
 
-  SET NOCOUNT ON;
+--   SET NOCOUNT ON;
 
-  DECLARE @DateAdded DATETIME2 = SYSDATETIME();
-  DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
-  DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-  DECLARE @WorkFlowStepTableRowCount INT = 0;
+--   DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+--   DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
+--   DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+--   DECLARE @WorkFlowStepTableRowCount INT = 0;
 
-	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange, EndTimeRange, UserAuthorizationKey, DateAdded)
-	SELECT
-		CONVERT(TIME, NULLIF(LEFT(Q.Time, CHARINDEX('-', Q.Time) - 1), 'TBD'), 108) AS ConvertedStartTime,
-		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime,
-		@UserAuthorizationKey, @DateAdded
-	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q;
+-- 	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange, EndTimeRange, UserAuthorizationKey, DateAdded)
+-- 	SELECT
+-- 		CONVERT(TIME, NULLIF(LEFT(Q.Time, CHARINDEX('-', Q.Time) - 1), 'TBD'), 108) AS ConvertedStartTime,
+-- 		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime,
+-- 		@UserAuthorizationKey, @DateAdded
+-- 	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q;
 
 
-    -- Additional statements or constraints can be added here
+--     -- Additional statements or constraints can be added here
 
-	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
-	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
-    EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadSchedule] loads data into ShowTableStatusRowCount',
-                                       @WorkFlowStepTableRowCount,
-                                       @StartingDateTime,
-                                       @EndingDateTime,
-                                       @QueryTime,
-                                       @UserAuthorizationKey;
+-- 	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+-- 	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+--     EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadSchedule] loads data into ShowTableStatusRowCount',
+--                                        @WorkFlowStepTableRowCount,
+--                                        @StartingDateTime,
+--                                        @EndingDateTime,
+--                                        @QueryTime,
+--                                        @UserAuthorizationKey;
 
-END;
-GO
+-- END;
+-- GO
 
 /*
 Stored Procedure: [Project3].[LoadDepartments]
@@ -2446,18 +2436,18 @@ BEGIN
 
 
     -- TIER 3 TABLE LOADS	
+    --Sigi
+    EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
+
 	-- Edwin
     EXEC [Project3].[LoadClass] @UserAuthorizationKey = 4
-
-	--Sigi
-    EXEC [Project3].[LoadSections] @UserAuthorizationKey = 2
 
 	-- Ahnaf
 	EXEC [Project3].[LoadEnrollmentDetail] @UserAuthorizationKey = 5
 
 	-- TIER 4 TABLE LOADS
 	-- Nicholas 
-	EXEC [Project3].[LoadSchedule]  @UserAuthorizationKey = 3
+	-- EXEC [Project3].[LoadSchedule]  @UserAuthorizationKey = 3
 
 
 
@@ -2474,12 +2464,12 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
- --EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+--  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
+--  EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+--  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+--  EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
  --EXEC [Process].[usp_ShowWorkflowSteps]
