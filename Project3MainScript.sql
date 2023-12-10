@@ -1858,7 +1858,10 @@ BEGIN
     [Uploadfile].[CurrentSemesterCourseOfferings]
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Enrollment].[Semester]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Semester Data',
@@ -1912,18 +1915,11 @@ BEGIN
     FROM
         [Uploadfile].[CurrentSemesterCourseOfferings] AS Upload;
 
-
-    -- INSERT INTO [Academic].[Section] (SectionCode, UserAuthorizationKey, DateAdded)
-    -- SELECT
-    -- Upload.Sec, @UserAuthorizationKey, @DateAdded
-    -- FROM [Uploadfile].[CurrentSemesterCourseOfferings] AS Upload;
-
-    -- INSERT INTO [Academic].[Section] (CourseID)
-    -- SELECT CourseId
-    --  FROM [Academic].[Course] AS C
-
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Academic].[Section]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Section Data',
@@ -2029,7 +2025,10 @@ BEGIN
 		ON Upload.Code = S.Code
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Enrollment].[EnrollmentDetail]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Procedure: [Project3].[LoadEnrollmentDetail] loads [EnrollmentDetail] table',
@@ -2054,19 +2053,10 @@ CREATE OR ALTER PROCEDURE [Project3].[LoadModeOfInstruction]
     @UserAuthorizationKey INT
 AS
 BEGIN
-
     SET NOCOUNT ON;
-
     DECLARE @DateAdded DATETIME2 = SYSDATETIME();
     DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-    DECLARE @WorkFlowStepTableRowCount INT = 0;
-
-    -- INSERT INTO [Enrollment].[Semester](
-    --     SemesterName, UserAuthorizationKey, DateAdded
-    -- )
-    -- SELECT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
-
 
     INSERT INTO ClassManagement.ModeOfInstruction(
                                                 ModeName, 
@@ -2078,6 +2068,11 @@ BEGIN
     FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q
     -- Additional statements or constraints can be added here
 
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [ClassManagement].[ModeOfInstruction]
+                                    );
 	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
 	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadModeOfInstruction] loads data into ShowTableStatusRowCount',
@@ -2103,11 +2098,9 @@ AS
 BEGIN
 
     SET NOCOUNT ON;
-
     DECLARE @DateAdded DATETIME2 = SYSDATETIME();
     DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
     DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-    DECLARE @WorkFlowStepTableRowCount INT = 0;
 
 	INSERT INTO [Facilities].[RoomLocation](RoomNumber,UserAuthorizationKey, DateAdded)
 	SELECT
@@ -2127,6 +2120,11 @@ BEGIN
 
     -- Additional statements or constraints can be added here
 
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Facilities].[RoomLocation]
+                                    );
 	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
 	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadRoomLocation] loads data into ShowTableStatusRowCount',
@@ -2152,11 +2150,9 @@ CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
   BEGIN
 
   SET NOCOUNT ON;
-
   DECLARE @DateAdded DATETIME2 = SYSDATETIME();
   DECLARE @DateOfLastUpdate DATETIME2 = SYSDATETIME();
   DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
-  DECLARE @WorkFlowStepTableRowCount INT = 0;
 
 	INSERT INTO [ClassManagement].[Schedule]	(RoomID,
 												SectionID,
@@ -2211,6 +2207,11 @@ CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
 
     -- Additional statements or constraints can be added here
 
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [ClassManagement].[Schedule]
+                                    );
 	DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
 	DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Procedure: Project3[LoadSchedule] loads data into ShowTableStatusRowCount',
@@ -2256,7 +2257,10 @@ BEGIN
     ORDER BY DepartmentName
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Academic].[Department]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Department Data',
@@ -2304,7 +2308,10 @@ BEGIN
             AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Personnel].[DepartmentInstructor]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Department Data',
@@ -2354,7 +2361,10 @@ BEGIN
         WHERE D.DayAbbreviation = LTRIM(RTRIM(SS.Value))
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [ClassManagement].[ClassDays]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add ClassDays Data',
@@ -2401,7 +2411,10 @@ BEGIN
     ORDER BY BuildingName
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [Facilities].[BuildingLocations]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add BuildingLocations Data',
@@ -2480,7 +2493,10 @@ BEGIN
     FROM [Uploadfile].[CurrentSemesterCourseOfferings] AS U;
 
     DECLARE @WorkFlowStepTableRowCount INT;
-    SET @WorkFlowStepTableRowCount = 0;
+    SET @WorkFlowStepTableRowCount = (
+                                    SELECT COUNT(*) 
+                                    FROM [ClassManagement].[Class]
+                                    );
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Class Data',
@@ -2640,21 +2656,4 @@ BEGIN
 
 END;
 GO
-
-
-
-
----------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
-
--- run the following command to LOAD the database from SCRATCH 
-EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
-
--- run the following 3 exec commands to TRUNCATE and LOAD the database 
-EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
-EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
-EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
-
--- run the following to show the workflow steps table 
--- EXEC [Process].[usp_ShowWorkflowSteps]
-
 
