@@ -1505,7 +1505,7 @@ BEGIN
                 CHARINDEX(',', [Course (hr, crd)]) - CHARINDEX('(', [Course (hr, crd)]) - 1
                 ) AS FLOAT) -- CreditHours 
         ,C.Description -- CourseName
-        , ( SELECT D.DepartmentID
+        , ( SELECT TOP 1 D.DepartmentID
             FROM [Academic].[Department] AS D
             WHERE D.DepartmentName = LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1))  
         ,@UserAuthorizationKey 
@@ -1765,7 +1765,7 @@ BEGIN
     INSERT INTO [Enrollment].[Semester](
         SemesterName, UserAuthorizationKey, DateAdded
     )
-    SELECT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
+    SELECT DISTINCT [Udt].GetSemesterName(@DateAdded), @UserAuthorizationKey, @DateAdded
     FROM
     [Uploadfile].[CurrentSemesterCourseOfferings]
 
@@ -2070,10 +2070,53 @@ CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
   DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
   DECLARE @WorkFlowStepTableRowCount INT = 0;
 
-	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange, EndTimeRange, UserAuthorizationKey, DateAdded)
+	INSERT INTO [ClassManagement].[Schedule]	(RoomID,
+												SectionID,
+												ClassID,
+												SemesterID,
+												StartTimeRange, 
+												EndTimeRange, 
+												UserAuthorizationKey, 
+												DateAdded)
 	SELECT
-		CONVERT(TIME, NULLIF(LEFT(Q.Time, CHARINDEX('-', Q.Time) - 1), 'TBD'), 108) AS ConvertedStartTime,
-		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime,
+		-- roomID
+		( SELECT TOP 1 R.RoomID
+            FROM [Facilities].[RoomLocation] AS R
+            WHERE R.RoomNumber = CASE
+                                    -- add the edge cases and then manually set it correctly
+                                    WHEN RIGHT(Q.Location, 4) = 'H 17' THEN '17'
+                                    WHEN RIGHT(Q.Location, 4) = '135H' THEN 'A135H'
+                                    WHEN RIGHT(Q.Location, 4) = '135B' THEN 'A135B'
+                                    WHEN RIGHT(Q.Location, 4) = 'H 09' THEN '09'
+                                    WHEN RIGHT(Q.Location, 4) = 'H 12' THEN '12'
+
+                                    -- checks for null and empty string, if so set default string named TBD
+                                    WHEN Q.Location IS NULL OR LTRIM(RTRIM(Q.Location)) = '' THEN 'TBD'
+                                        ELSE RIGHT(Q.Location, 4)
+                                END
+        ),
+		-- SectionId
+		 ( SELECT TOP 1 S.SectionID
+            FROM [Academic].[Section] AS S
+            WHERE S.Code = Q.Code -- Section Code
+                AND S.Section = Q.Sec -- Section Number
+        ),
+		-- ClassID
+		( SELECT TOP 1 C.ClassID
+            FROM [ClassManagement].[Class] AS C
+				INNER JOIN [Academic].[Section] AS S
+				ON C.SectionID = S.SectionID
+            WHERE C.SectionId = S.SectionID 
+        ),
+		-- SemesterId
+		(SELECT TOP 1 S.SemesterID
+            FROM [Enrollment].[Semester] AS S
+			WHERE S.SemesterName = 'Fall 2023'
+         ),
+		-- StartTimeRange
+		CONVERT(TIME, NULLIF(LEFT(Q.Time, CHARINDEX('-', Q.Time) - 1), 'TBD'), 108) AS ConvertedStartTime, 
+		--EndTimeRange
+		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime, 
 		@UserAuthorizationKey, @DateAdded
 	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q;
 
@@ -2466,9 +2509,9 @@ GO
  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
---  EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
---  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
---  EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
+  EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+  EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
  EXEC [Process].[usp_ShowWorkflowSteps]
