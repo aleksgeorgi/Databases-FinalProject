@@ -1063,6 +1063,21 @@ BEGIN
 END;
 GO
 
+-- string splitter function for classdays
+
+CREATE FUNCTION dbo.SplitString (@List NVARCHAR(MAX), @Delimiter NVARCHAR(255))
+RETURNS TABLE
+AS
+RETURN ( 
+    SELECT [Value] = y.i.value('(./text())[1]', 'nvarchar(4000)')
+    FROM ( 
+        SELECT x = CONVERT(XML, '<i>' 
+        + REPLACE(@List, @Delimiter, '</i><i>') 
+        + '</i>').query('.')
+    ) AS a CROSS APPLY x.nodes('i') AS y(i)
+);
+GO
+
 
 --------------------------------- Create Stored Procedures -------------------------------
 
@@ -2328,14 +2343,15 @@ BEGIN
     INSERT INTO [ClassManagement].[ClassDays] (
         ClassID, DayID, UserAuthorizationKey, DateAdded
     )
-    SELECT DISTINCT C.ClassID, D.DayID
+    SELECT DISTINCT C.ClassID, D.DayID, @UserAuthorizationKey, @DateAdded
     FROM ClassManagement.Class AS C
         CROSS JOIN ClassManagement.[Days] AS D
         INNER JOIN Academic.Section AS S 
             ON S.SectionID = C.SectionID
         INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
             ON U.Code = S.Code
-            AND (D.DayAbbreviation IN (LTRIM(RTRIM(STRING_SPLIT(U.Day, ',')))))
+        CROSS APPLY dbo.SplitString(U.Day, ',') AS SS
+        WHERE D.DayAbbreviation = LTRIM(RTRIM(SS.Value))
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = 0;
@@ -2634,9 +2650,9 @@ GO
 EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
--- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
--- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
+EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
 -- EXEC [Process].[usp_ShowWorkflowSteps]
