@@ -104,7 +104,42 @@ WHERE E.OverEnrolled = 'Yes'
 
 
 
+/* =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/9/23
+-- Proposition:	Which Instructors teach courses with over 150 students enrolled?
+-- =============================================*/
+
+SELECT DISTINCT CONCAT(I.FirstName, ' ', I.LastName) AS Professor
+FROM Enrollment.EnrollmentDetail AS E
+    INNER JOIN Academic.Section AS S
+        ON S.SectionID = E.SectionID
+        INNER JOIN Academic.Course AS C
+            ON C.CourseId = S.CourseID
+        INNER JOIN Personnel.DepartmentInstructor AS DI
+            ON DI.DepartmentID = C.DepartmentID
+        INNER JOIN Personnel.Instructor AS I
+            ON DI.InstructorID = I.InstructorID
+WHERE E.CurrentEnrollment > 150
 
 
+/* =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/9/23
+-- Proposition:	Which classes have over enrollment and by how many students?
+-- =============================================*/
+
+SELECT DISTINCT CONCAT(C.CourseAbbreviation, C.CourseNumber) AS Course, 
+                C.CourseName, 
+                S.SectionID, 
+                E.CurrentEnrollment, 
+                E.MaxEnrollmentLimit, 
+                (E.CurrentEnrollment - E.MaxEnrollmentLimit) AS Overflow
+FROM Academic.Course AS C
+    INNER JOIN Academic.Section AS S
+        ON C.CourseId = S.CourseID
+    INNER JOIN Enrollment.EnrollmentDetail AS E
+        ON S.SectionID = E.SectionID
+WHERE E.CurrentEnrollment > E.MaxEnrollmentLimit
 
 --- add more above here
