@@ -55,6 +55,30 @@ INNER JOIN [Personnel].[Instructor] AS I
 ON D.InstructorId = I.InstructorID
 
 
+/* =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/10/23
+-- Proposition: Show all the courses being taught in a specific department
+-- =============================================*/
+DECLARE  @DeptID INT = 1;
+
+SELECT D.DepartmentID, D.DepartmentName, C.CourseName, C.CourseAbbreviation, C.CourseNumber, C.CourseId
+FROM [Academic].Department AS D 
+INNER JOIN [Academic].Course AS C ON C.DepartmentID = D.DepartmentID
+WHERE D.DepartmentID = @DeptID
+
+
+/* =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/10/23
+-- Proposition: Show all teachers in the Accounting Department whose first name starts with A
+-- =============================================*/
+
+SELECT D.DepartmentID, D.DepartmentName, I.FirstName, I.LastName
+FROM [Personnel].DepartmentInstructor AS DI
+INNER JOIN [Personnel].Instructor AS I ON I.InstructorID = DI.InstructorID 
+INNER JOIN [Academic].Department AS D ON D.DepartmentID = DI.DepartmentID
+WHERE D.DepartmentName = 'ACCT' AND I.FirstName LIKE 'A%'
 
 
 --- add more above here
