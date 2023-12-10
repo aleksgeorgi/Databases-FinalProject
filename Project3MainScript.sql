@@ -507,6 +507,39 @@ GO
 
 /*
 
+Table: [ClassManagement].[ClassDays]
+
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/6/23
+-- Description:	Create a bridge table between class and days
+-- =============================================
+
+*/
+
+DROP TABLE IF EXISTS [ClassManagement].[ClassDays]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [ClassManagement].[ClassDays]
+(
+    ClassDaysID [int] NOT NULL IDENTITY(1, 1), -- primary key
+    ClassID [int] NOT NULL,
+    DayID [int] NOT NULL,
+    -- all tables must have the following 3 columns:
+    [UserAuthorizationKey] [Udt].[SurrogateKeyInt] NOT NULL, 
+    [DateAdded] [Udt].[DateAdded] NOT NULL,
+    [DateOfLastUpdate] [Udt].[DateOfLastUpdate] NOT NULL,
+    PRIMARY KEY CLUSTERED(
+	[ClassDaysID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/*
+
 Table: [Facilities].[BuildingLocations]
 
 -- =============================================
@@ -736,6 +769,10 @@ ALTER TABLE [Personnel].[DepartmentInstructor] ADD  DEFAULT (sysdatetime()) FOR 
 GO
 ALTER TABLE [Personnel].[DepartmentInstructor] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
 GO
+ALTER TABLE [ClassManagement].[ClassDays] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
+GO
+ALTER TABLE [ClassManagement].[ClassDays] ADD  DEFAULT (sysdatetime()) FOR [DateOfLastUpdate]
+GO
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations] ADD  DEFAULT (sysdatetime()) FOR [DateAdded]
@@ -858,7 +895,21 @@ REFERENCES [Academic].[Department] ([DepartmentID])
 GO
 ALTER TABLE [Personnel].[DepartmentInstructor] CHECK CONSTRAINT [FK_DepartmentInstructor_Department]
 GO
-
+ALTER TABLE [ClassManagement].[ClassDays]  WITH CHECK ADD  CONSTRAINT [FK_ClassDays_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
+REFERENCES [DbSecurity].[UserAuthorization] ([UserAuthorizationKey])
+GO
+ALTER TABLE [ClassManagement].[ClassDays] CHECK CONSTRAINT [FK_ClassDays_UserAuthorization]
+GO
+ALTER TABLE [ClassManagement].[ClassDays]  WITH CHECK ADD  CONSTRAINT [FK_ClassDays_Class] FOREIGN KEY([ClassID])
+REFERENCES [ClassManagement].[Class] ([ClassID])
+GO
+ALTER TABLE [ClassManagement].[ClassDays] CHECK CONSTRAINT [FK_ClassDays_Class]
+GO
+ALTER TABLE [ClassManagement].[ClassDays]  WITH CHECK ADD  CONSTRAINT [FK_ClassDays_Days] FOREIGN KEY([DayID])
+REFERENCES [ClassManagement].[Days] ([DayID])
+GO
+ALTER TABLE [ClassManagement].[ClassDays] CHECK CONSTRAINT [FK_ClassDays_Days]
+GO
 
 -- Edwin
 ALTER TABLE [Facilities].[BuildingLocations]  WITH CHECK ADD  CONSTRAINT [FK_BuildingLocations_UserAuthorization] FOREIGN KEY([UserAuthorizationKey])
@@ -1209,6 +1260,19 @@ BEGIN
     ADD CONSTRAINT FK_Department_Instructor
         FOREIGN KEY (InstructorID)
         REFERENCES [Personnel].[Instructor] (InstructorID);
+    ALTER TABLE [ClassManagement].[ClassDays]
+    ADD CONSTRAINT FK_ClassDays_UserAuthorization
+        FOREIGN KEY (UserAuthorizationKey)
+        REFERENCES [DbSecurity].[UserAuthorization] (UserAuthorizationKey);
+    ALTER TABLE [ClassManagement].[ClassDays]
+    ADD CONSTRAINT FK_ClassDays_Class
+        FOREIGN KEY (ClassID)
+        REFERENCES [ClassManagement].[Class] (ClassID);
+    ALTER TABLE [ClassManagement].[ClassDays]
+    ADD CONSTRAINT FK_ClassDays_Days
+        FOREIGN KEY (DayID)
+        REFERENCES [ClassManagement].[Days] (DayID);
+
 
     -- Sigi
     ALTER TABLE [Enrollment].[Semester]
@@ -1384,6 +1448,9 @@ BEGIN
     ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_UserAuthorization;
     ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_Department;
     ALTER TABLE [Personnel].[DepartmentInstructor] DROP CONSTRAINT FK_DepartmentInstructor_Instructor;
+    ALTER TABLE [ClassManagement].[ClassDays] DROP CONSTRAINT FK_ClassDays_UserAuthorization;
+    ALTER TABLE [ClassManagement].[ClassDays] DROP CONSTRAINT FK_ClassDays_Class;
+    ALTER TABLE [ClassManagement].[ClassDays] DROP CONSTRAINT FK_ClassDays_Days;
 
     -- Edwin
     ALTER TABLE [Facilities].[BuildingLocations] DROP CONSTRAINT FK_BuildingLocations_UserAuthorization;
@@ -1570,6 +1637,7 @@ BEGIN
     -- Aryeh
     TRUNCATE TABLE [Academic].[Department]
     TRUNCATE TABLE [Personnel].[DepartmentInstructor]
+    TRUNCATE TABLE [ClassManagement].[ClassDays]
 
 	-- Nicholas
 	TRUNCATE TABLE [ClassManagement].[ModeOfInstruction]
@@ -1710,6 +1778,11 @@ BEGIN
             TableName = '[Personnel].[DepartmentInstructor]',
             [Row Count] = COUNT(*)
         FROM [Personnel].[DepartmentInstructor]
+    UNION ALL
+        SELECT TableStatus = @TableStatus,
+            TableName = '[ClassManagement].[ClassDays]',
+            [Row Count] = COUNT(*)
+        FROM [ClassManagement].[ClassDays]
     -- Edwin
     UNION ALL
         SELECT TableStatus = @TableStatus,
@@ -2180,6 +2253,8 @@ BEGIN
 END;
 GO
 
+
+
 /*
 Stored Procedure: [Project3].[LoadDepartmentInstructor]
 
@@ -2218,6 +2293,55 @@ BEGIN
     DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
     DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
     EXEC [Process].[usp_TrackWorkFlow] 'Add Department Data',
+                                       @WorkFlowStepTableRowCount,
+                                       @StartingDateTime,
+                                       @EndingDateTime,
+                                       @QueryTime,
+                                       @UserAuthorizationKey;
+END;
+GO
+
+
+
+/*
+Stored Procedure: [Project3].[LoadClassDays]
+
+-- =============================================
+-- Author:		Aryeh Richman
+-- Create date: 12/10/23
+-- Description:	Adds the values to the Class / Day bridge table
+-- =============================================
+
+*/
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER PROCEDURE [Project3].[LoadClassDays] @UserAuthorizationKey INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @DateAdded DATETIME2 = SYSDATETIME();
+    DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
+
+    INSERT INTO [ClassManagement].[ClassDays] (
+        ClassID, DayID, UserAuthorizationKey, DateAdded
+    )
+    SELECT DISTINCT C.ClassID, D.DayID
+    FROM ClassManagement.Class AS C
+        CROSS JOIN ClassManagement.[Days] AS D
+        INNER JOIN Academic.Section AS S 
+            ON S.SectionID = C.SectionID
+        INNER JOIN Uploadfile.CurrentSemesterCourseOfferings AS U
+            ON U.Code = S.Code
+            AND (D.DayAbbreviation IN (LTRIM(RTRIM(STRING_SPLIT(U.Day, ',')))))
+
+    DECLARE @WorkFlowStepTableRowCount INT;
+    SET @WorkFlowStepTableRowCount = 0;
+    DECLARE @EndingDateTime DATETIME2 = SYSDATETIME();
+    DECLARE @QueryTime BIGINT = CAST(DATEDIFF(MILLISECOND, @StartingDateTime, @EndingDateTime) AS bigint);
+    EXEC [Process].[usp_TrackWorkFlow] 'Add ClassDays Data',
                                        @WorkFlowStepTableRowCount,
                                        @StartingDateTime,
                                        @EndingDateTime,
@@ -2491,7 +2615,8 @@ BEGIN
 	-- Nicholas 
 	EXEC [Project3].[LoadSchedule]  @UserAuthorizationKey = 3
 
-
+    -- areyh
+    EXEC [Project3].[LoadClassDays]  @UserAuthorizationKey = 6
 
     --	Check row count before truncation
     EXEC [Project3].[ShowTableStatusRowCount] @UserAuthorizationKey = 6,  -- Change to the appropriate UserAuthorizationKey
@@ -2506,14 +2631,14 @@ GO
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
-  EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
-  EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
-  EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
+-- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+-- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+-- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
- EXEC [Process].[usp_ShowWorkflowSteps]
+-- EXEC [Process].[usp_ShowWorkflowSteps]
 
 
