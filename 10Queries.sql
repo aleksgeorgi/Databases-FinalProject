@@ -81,4 +81,30 @@ INNER JOIN [Academic].Department AS D ON D.DepartmentID = DI.DepartmentID
 WHERE D.DepartmentName = 'ACCT' AND I.FirstName LIKE 'A%'
 
 
+/* =============================================
+-- Author:		Ahnaf Ahmed
+-- Create date: 12/10/23
+-- Proposition: Show all the sections that have exceeded the maximum limit of enrollment.
+--              Display the course, course name, section code, no. of students currently enrolled,
+--              maximum enrollment limit, and how many students are over the maximum limit.
+-- =============================================*/
+
+SELECT CONCAT(C.CourseAbbreviation, ' ', C.CourseNumber) AS [Course],
+        C.CourseName,
+        S.Code AS [SectionCode],
+        E.CurrentEnrollment,
+        E.MaxEnrollmentLimit,
+        E.CurrentEnrollment - E.MaxEnrollmentLimit AS [StudentsOverLimit]
+FROM Academic.Course AS C
+    INNER JOIN Academic.Section AS S
+        ON C.CourseId = S.CourseID
+    INNER JOIN Enrollment.EnrollmentDetail AS E
+        ON S.SectionID = E.SectionID
+WHERE E.OverEnrolled = 'Yes'
+
+
+
+
+
+
 --- add more above here
