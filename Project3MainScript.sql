@@ -393,10 +393,10 @@ SET QUOTED_IDENTIFIER ON
 GO
 CREATE TABLE  [ClassManagement].[Schedule] (
     ScheduleID INT IDENTITY(1,1) NOT NULL,
-	RoomID INT NOT NULL, 
-	SectionID INT NOT NULL,
-	ClassID INT NOT NULL,
-	SemesterID INT NOT NULL,
+	RoomID INT NULL, 
+	SectionID INT NULL,
+	ClassID INT NULL,
+	SemesterID INT NULL,
     StartTimeRange [Udt].[ClassTime] NOT NULL CHECK (StartTimeRange >= '00:00:00.0000000' AND StartTimeRange <= '24:00:00.0000000'),
 	EndTimeRange [Udt].[ClassTime] NOT NULL CHECK (EndTimeRange >= '00:00:00.0000000' AND EndTimeRange <= '24:00:00.0000000'),
 	 -- all tables must have the following 3 columns:
@@ -1535,6 +1535,8 @@ END;
 GO
 
 
+
+
 /*
 Stored Procedure: Project2.[TruncateClassScheduleData]
 
@@ -2073,10 +2075,11 @@ CREATE OR ALTER PROCEDURE [Project3].[LoadSchedule]
   DECLARE @StartingDateTime DATETIME2 = SYSDATETIME();
   DECLARE @WorkFlowStepTableRowCount INT = 0;
 
-	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange,EndTimeRange)
+	INSERT INTO [ClassManagement].[Schedule] (StartTimeRange, EndTimeRange, UserAuthorizationKey, DateAdded)
 	SELECT
 		CONVERT(TIME, NULLIF(LEFT(Q.Time, CHARINDEX('-', Q.Time) - 1), 'TBD'), 108) AS ConvertedStartTime,
-		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime
+		CONVERT(TIME, NULLIF(RIGHT(Q.Time, LEN(Q.Time) - CHARINDEX('-', Q.Time)), 'TBD'), 108) AS ConvertedEndTime,
+		@UserAuthorizationKey, @DateAdded
 	FROM [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] as Q;
 
 
@@ -2449,15 +2452,18 @@ GO
 
 
 
+
 ---------------------------------------- EXEC COMMANDS TO MANAGE THE DB -------------------------------------------------
 
 -- run the following command to LOAD the database from SCRATCH 
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+ --EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
 
 -- run the following 3 exec commands to TRUNCATE and LOAD the database 
--- EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
--- EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
--- EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
+ EXEC [Project3].[TruncateClassScheduleDatabase] @UserAuthorizationKey = 1;
+ EXEC [Project3].[LoadClassScheduleDatabase]  @UserAuthorizationKey = 1;
+ EXEC [Project3].[AddForeignKeysToClassSchedule] @UserAuthorizationKey = 1; 
 
 -- run the following to show the workflow steps table 
--- EXEC [Process].[usp_ShowWorkflowSteps]
+ --EXEC [Process].[usp_ShowWorkflowSteps]
+
+
