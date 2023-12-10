@@ -136,6 +136,61 @@ INNER JOIN [Personnel].Instructor AS I ON I.InstructorID = DI.InstructorID
 INNER JOIN [Academic].Department AS D ON D.DepartmentID = DI.DepartmentID
 WHERE D.DepartmentName = 'ACCT' AND I.FirstName LIKE 'A%'
 
+/* =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/10/23
+-- Proposition: Identify instructors who are not assigned to any class
+-- =============================================*/
+--Empty because all instructors included in the data are teaching this semester
+SELECT
+    I.InstructorID,
+    I.LastName,
+    I.FirstName 
+FROM
+    [Personnel].Instructor AS I
+WHERE
+    NOT EXISTS (
+        SELECT 1
+        FROM ClassManagement.Class AS C 
+        WHERE C.InstructorID = I.InstructorID
+    )
+ORDER BY I.LastName
+
+/* =============================================
+-- Author:		Sigalita Yakubova
+-- Create date: 12/10/23
+-- Proposition: Most Popular Courses: Rank courses based on total enrollment for the semester, showing the most to least popular
+-- =============================================*/
+
+WITH CourseEnrollment AS (
+    SELECT
+        C.CourseID,
+        C.CourseName,
+        ED.CurrentEnrollment,
+        ED.MaxEnrollmentLimit
+    FROM
+        [Academic].Section AS S
+    INNER JOIN [Academic].Course AS C ON S.CourseID = C.CourseID
+    INNER JOIN Enrollment.EnrollmentDetail AS ED ON ED.SectionID = S.SectionID
+    GROUP BY
+        C.CourseID, C.CourseName, ED.CurrentEnrollment, ED.MaxEnrollmentLimit
+)
+
+SELECT
+    CE.CourseID,
+    CE.CourseName,
+    CE.CurrentEnrollment,
+    CE.MaxEnrollmentLimit,
+    RANK() OVER (ORDER BY 
+        CASE 
+            WHEN CE.MaxEnrollmentLimit > 0 THEN CE.CurrentEnrollment * 1.0 / CE.MaxEnrollmentLimit
+            ELSE 0 -- Handle the case where MaxEnrollmentLimit is 0
+        END DESC
+    ) AS EnrollmentRank
+FROM
+    CourseEnrollment CE;
+
+
 
 /* =============================================
 -- Author:		Ahnaf Ahmed
