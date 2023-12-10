@@ -2132,34 +2132,46 @@ BEGIN
 
     INSERT INTO [ClassManagement].[Class] (
         CourseID, SectionID, InstructorID, RoomID, ModeID, UserAuthorizationKey, DateAdded
-    )
-    SELECT DISTINCT C.CourseID, S.SectionID, I.InstructorID, R.RoomID, M.ModeID, @UserAuthorizationKey, @DateAdded
-        FROM [Academic].[Course] AS C
-            CROSS JOIN [Academic].[Section] AS S
-            CROSS JOIN [Personnel].[Instructor] AS I
-            CROSS JOIN [Facilities].[RoomLocation] AS R
-            CROSS JOIN [ClassManagement].[ModeOfInstruction] AS M
-            INNER JOIN [QueensClassSchedule].[Uploadfile].[CurrentSemesterCourseOfferings] AS U
-                ON LEFT(U.[Course (hr, crd)], PATINDEX('%[ (]%', U.[Course (hr, crd)]) - 1) = C.CourseAbbreviation -- CourseAbbreviation
-                AND SUBSTRING(U.[Course (hr, crd)], PATINDEX('%[0-9]%', U.[Course (hr, crd)]), 
-                        CHARINDEX('(', U.[Course (hr, crd)]) - PATINDEX('%[0-9]%', U.[Course (hr, crd)])) = C.CourseNumber-- CourseNumber
-                AND UPPER(LTRIM(RTRIM(U.[Code]))) = UPPER(LTRIM(RTRIM(S.Code))) -- Section Code
-                AND UPPER(LTRIM(RTRIM(U.[Sec]))) = UPPER(LTRIM(RTRIM(S.Section))) -- Section Number
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))) = I.FirstName -- Instr FirstName
-                AND LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))) = I.LastName -- Instr LastName
-                AND CASE -- RoomNumber
-                        -- add the edge cases and then manually set it correctly
-                        WHEN RIGHT(U.Location, 4) = 'H 17' THEN '17'
-                        WHEN RIGHT(U.Location, 4) = '135H' THEN 'A135H'
-                        WHEN RIGHT(U.Location, 4) = '135B' THEN 'A135B'
-                        WHEN RIGHT(U.Location, 4) = 'H 09' THEN '09'
-                        WHEN RIGHT(U.Location, 4) = 'H 12' THEN '12'
+    ) 
+    SELECT DISTINCT
+        ( SELECT TOP 1 C.CourseID
+            FROM [Academic].[Course] AS C
+            WHERE C.CourseAbbreviation = LEFT([Course (hr, crd)], PATINDEX('%[ (]%', [Course (hr, crd)]) - 1) -- CourseAbbreviation
+                    AND C.CourseNumber = SUBSTRING([Course (hr, crd)], PATINDEX('%[0-9]%', [Course (hr, crd)]), 
+                            CHARINDEX('(', [Course (hr, crd)]) - PATINDEX('%[0-9]%', [Course (hr, crd)])) -- CourseNumber
+        )
+        , ( SELECT TOP 1 S.SectionID
+            FROM [Academic].[Section] AS S
+            WHERE S.Code = U.Code -- Section Code
+                AND S.Section = U.Sec -- Section Number
+        )
+        , ( SELECT TOP 1 I.InstructorID
+            FROM [Personnel].[Instructor] AS I
+            WHERE I.FirstName = COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(U.Instructor, CHARINDEX(',', U.Instructor) + 2, LEN(U.Instructor)))), ''), 'none') -- FirstName
+                AND I.LastName = COALESCE(NULLIF(LTRIM(RTRIM(SUBSTRING(U.Instructor, 1, CHARINDEX(',', U.Instructor) - 1))), ''), 'none') -- LastName
+        )
+        , ( SELECT TOP 1 R.RoomID
+            FROM [Facilities].[RoomLocation] AS R
+            WHERE R.RoomNumber = CASE
+                                    -- add the edge cases and then manually set it correctly
+                                    WHEN RIGHT(U.Location, 4) = 'H 17' THEN '17'
+                                    WHEN RIGHT(U.Location, 4) = '135H' THEN 'A135H'
+                                    WHEN RIGHT(U.Location, 4) = '135B' THEN 'A135B'
+                                    WHEN RIGHT(U.Location, 4) = 'H 09' THEN '09'
+                                    WHEN RIGHT(U.Location, 4) = 'H 12' THEN '12'
 
-                        -- checks for null and empty string, if so set default string named TBD
-                        WHEN U.Location IS NULL OR LTRIM(RTRIM(U.Location)) = '' THEN 'TBD'
-                        ELSE RIGHT(U.Location, 4)
-                    END = R.RoomNumber
-                AND UPPER(LTRIM(RTRIM(U.[Mode of Instruction]))) = UPPER(LTRIM(RTRIM(M.ModeName))) -- MoI Name (ex. Hybrid)
+                                    -- checks for null and empty string, if so set default string named TBD
+                                    WHEN U.Location IS NULL OR LTRIM(RTRIM(U.Location)) = '' THEN 'TBD'
+                                        ELSE RIGHT(U.Location, 4)
+                                END
+        )
+        , ( SELECT TOP 1 M.ModeID
+            FROM [ClassManagement].[ModeOfInstruction] AS M
+            WHERE M.ModeName = U.[Mode of Instruction]
+        )
+        , @UserAuthorizationKey 
+        , @DateAdded
+    FROM [Uploadfile].[CurrentSemesterCourseOfferings] AS U;
 
     DECLARE @WorkFlowStepTableRowCount INT;
     SET @WorkFlowStepTableRowCount = 0;
