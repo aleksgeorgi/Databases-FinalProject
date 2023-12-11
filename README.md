@@ -6,11 +6,11 @@ Fall 2023
 
 ## Project 3 Goal:
 
-TBD
+Take flat file of Class Schedule and create a normalized database with appropriate schemas and table relationships 
 
 ## Team Members:
 
-- Aleksandra Georgievska
+- Aleksandra Georgievska (Team Lead)
 - Nicholas Kong
 - Aryeh Richman
 - Edwin Wray
