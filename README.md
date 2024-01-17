@@ -6,7 +6,7 @@ Fall 2023
 
 ## Project 3 Goal:
 
-Take flat file of Class Schedule and create a normalized database with appropriate schemas and table relationships 
+Database Design and Implementation. Take flat file from the QueensClassSchedule backup file and create a normalized database with appropriate schemas and table relationships. Then create 10 queries of varying complexity to test the database.
 
 ## Team Members:
 
