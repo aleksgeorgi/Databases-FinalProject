@@ -17,7 +17,11 @@ Database Design and Implementation. Take flat file from the QueensClassSchedule 
 - Sigalita Yakubova
 - Ahnaf Ahmed
 
-## Project Presentation Slides
+## Project Presentation Video
+
+![YouTube](https://youtu.be/x727eloWgkE)
+
+## Select Project Presentation Slides
 
 ![Imgur](https://i.imgur.com/fb6ORwt.png)
 
