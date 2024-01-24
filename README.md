@@ -19,7 +19,7 @@ Database Design and Implementation. Take flat file from the QueensClassSchedule 
 
 ## Project Presentation Video
 
-![YouTube](https://youtu.be/x727eloWgkE)
+[![ProjectPresentationVideo](https://i.imgur.com/wwqR3jG.png)](https://youtu.be/x727eloWgkE)
 
 ## Select Project Presentation Slides
 
