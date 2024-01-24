@@ -1,12 +1,14 @@
-# CSCI 331 Databases & Data Modeling
+# CSCI 331 Databases & Data Modeling Final Project
 
-CUNY Queens College  
-Professor Peter Heller  
-Fall 2023
+CUNY Queens College - Professor Peter Heller - Fall 2023
 
-## Project 3 Goal:
+## Project Goal:
 
 Database Design and Implementation. Take flat file from the QueensClassSchedule backup file and create a 3NF database with appropriate schemas and table relationships. Then create 10 queries of varying complexity to test the database.
+
+## Results
+
+[Project3MainScript.sql](https://github.com/aleksgeorgi/Databases-FinalProject/blob/main/Project3MainScript.sql)
 
 ## Team Members:
 
