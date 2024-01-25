@@ -3,8 +3,6 @@
 CSCI 331 Databases & Data Modeling with Peter Heller
 CUNY Queens College - Fall 2023
 
-## Project Goal:
-
 This project is the culmination of a semester-long collaborative effort. Our group was to transform a basic flat data file into a robust, 3rd Normal Form (3NF) compliant database. The dataset comprises detailed class information for the current semester, including sections, building locations, professor assignments, and departmental data. Our primary focus was to ensure data integrity, clarity, and efficiency throughout the database design process.
 
 ## Results
